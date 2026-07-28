@@ -1,0 +1,228 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap');
+
+:root {
+  --red: #CA151E;
+  --red-dark: #981017;
+  --black: #0A0A0A;
+  --white: #FFFFFF;
+  --cream: #F6F5F3;
+  --line: #E8E5E0;
+  --gray: #8A8580;
+  --gray-dark: #1C1B1A;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Raleway', sans-serif;
+  background: var(--white);
+  color: var(--black);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+/* ---------- HEADER ---------- */
+header.site-header {
+  background: var(--black);
+  border-bottom: 4px solid var(--red);
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.logo-img { height: 42px; display: block; }
+.header-title {
+  color: var(--white);
+  font-weight: 900;
+  font-size: 15px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-left: 12px;
+  border-left: 1px solid rgba(255,255,255,0.25);
+  padding-left: 12px;
+}
+.header-left { display: flex; align-items: center; }
+
+nav.nav-tabs { display: flex; gap: 6px; }
+.nav-tab {
+  font-family: 'Raleway', sans-serif;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all .15s ease;
+}
+.nav-tab:hover { color: var(--white); border-color: rgba(255,255,255,0.5); }
+.nav-tab.active { background: var(--red); color: var(--white); border-color: var(--red); }
+
+#status-carga {
+  text-align: right;
+  font-size: 11px;
+  color: var(--gray);
+  padding: 6px 24px 0;
+}
+#status-carga.status-error { color: var(--red); font-weight: 600; }
+
+/* ---------- VIEWS ---------- */
+.view { display: none; padding: 32px 0 64px; }
+.view.active { display: block; }
+
+.view-title {
+  font-weight: 900;
+  font-size: 28px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+.view-subtitle { color: var(--gray); font-size: 14px; margin: 0 0 28px; }
+
+/* ---------- KPI CARDS ---------- */
+.kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+.kpi-card {
+  background: var(--cream);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  border-left: 4px solid var(--red);
+}
+.kpi-card.alert { border-left-color: var(--gray-dark); background: #FDEEEF; }
+.kpi-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray); font-weight: 700; margin-bottom: 6px; }
+.kpi-value { font-size: 30px; font-weight: 900; }
+
+/* ---------- PANELS ---------- */
+.panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 20px;
+}
+.panel-title { font-size: 15px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 16px; }
+.panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+/* ---------- EMBUDO ---------- */
+.embudo-row { display: grid; grid-template-columns: 130px 1fr 36px; align-items: center; gap: 10px; margin-bottom: 10px; }
+.embudo-label { font-size: 12.5px; font-weight: 600; color: var(--gray-dark); }
+.embudo-bar-track { background: var(--cream); border-radius: 5px; height: 16px; overflow: hidden; }
+.embudo-bar-fill { background: var(--gray-dark); height: 100%; border-radius: 5px; transition: width .4s ease; }
+.embudo-row.etapa-ganada .embudo-bar-fill { background: var(--red); }
+.embudo-row.etapa-perdida .embudo-bar-fill { background: var(--gray); }
+.embudo-value { text-align: right; font-weight: 800; font-size: 13px; }
+
+/* ---------- CHART CONTAINERS ---------- */
+.chart-box { height: 240px; position: relative; }
+
+/* ---------- ETIQUETAS ---------- */
+.tag-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.tag-tab {
+  font-family: 'Raleway', sans-serif;
+  background: var(--cream);
+  border: 1px solid var(--line);
+  color: var(--gray-dark);
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 20px;
+  cursor: pointer;
+}
+.tag-tab.active { background: var(--black); color: var(--white); border-color: var(--black); }
+.tag-row { display: grid; grid-template-columns: 220px 1fr 110px; align-items: center; gap: 10px; margin-bottom: 9px; }
+.tag-name { font-size: 12.5px; color: var(--gray-dark); }
+.tag-bar-track { background: var(--cream); border-radius: 5px; height: 12px; overflow: hidden; }
+.tag-bar-fill { background: var(--red); height: 100%; border-radius: 5px; }
+.tag-value { text-align: right; font-size: 12px; font-weight: 700; }
+.empty-msg { color: var(--gray); font-size: 13px; font-style: italic; }
+
+/* ---------- COMERCIAL SELECTOR ---------- */
+.pill-row { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.pill {
+  font-family: 'Raleway', sans-serif;
+  background: var(--white);
+  border: 2px solid var(--black);
+  color: var(--black);
+  padding: 9px 20px;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 24px;
+  cursor: pointer;
+}
+.pill.active { background: var(--red); border-color: var(--red); color: var(--white); }
+
+#comercial-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+#comercial-chart-wrap { display: none; }
+
+/* ---------- RUTA DEL BONO (elemento signature) ---------- */
+.bono-banner {
+  display: inline-block;
+  background: var(--gray-dark);
+  color: var(--white);
+  font-weight: 800;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 18px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.bono-banner--ok { background: var(--red); }
+#bono-objetivo-label { color: var(--gray); font-size: 13px; margin: 0 0 24px; }
+
+.ruta-stop { margin-bottom: 26px; }
+.ruta-mes { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray-dark); margin-bottom: 6px; }
+.ruta-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: repeating-linear-gradient(90deg, var(--line) 0 18px, transparent 18px 30px);
+  background-color: var(--cream);
+  margin-bottom: 8px;
+}
+.ruta-fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  background: var(--gray-dark); border-radius: 5px;
+  transition: width .6s ease;
+}
+.ruta-fill--ok { background: var(--red); }
+.ruta-truck {
+  position: absolute; top: 50%; transform: translate(-50%, -55%);
+  font-size: 20px; transition: left .6s ease;
+}
+.ruta-monto { font-size: 13px; font-weight: 700; }
+.ruta-pct { color: var(--gray); font-weight: 500; }
+
+/* ---------- TABLA COMISIONES ---------- */
+table.comisiones { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.comisiones th {
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--gray); padding: 8px 10px; border-bottom: 2px solid var(--black);
+}
+table.comisiones td { padding: 10px; border-bottom: 1px solid var(--line); }
+table.comisiones tr.fila-total td { font-weight: 900; border-top: 2px solid var(--black); background: var(--cream); }
+
+footer.site-footer {
+  text-align: center; padding: 24px; color: var(--gray); font-size: 12px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 760px) {
+  .kpi-row, #comercial-kpis { grid-template-columns: 1fr; }
+  .panel-row { grid-template-columns: 1fr; }
+  .header-inner { flex-direction: column; align-items: flex-start; }
+  nav.nav-tabs { width: 100%; overflow-x: auto; }
+}
