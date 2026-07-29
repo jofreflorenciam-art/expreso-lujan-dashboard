@@ -63,31 +63,108 @@ function renderBarras(containerId, entries, opciones) {
 }
 
 /** Embudo real + tasas de conversión entre etapas */
-function renderFunnel(containerId, embudo) {
-  const ETAPAS_FUNNEL = ["NUEVO", "COTIZACION ENVIADA", "NEGOCIACION", "GANADA"];
+/**
+ * Cuadro de arrastre: oportunidades creadas ANTES del mes elegido que todavía
+ * no se cerraron (ni ganadas ni perdidas), agrupadas por la etapa en la que están.
+ * Sirve para ver el trabajo pendiente que se hereda de meses previos.
+ */
+function renderArrastre(containerId, filas, mes) {
   const wrap = document.getElementById(containerId);
   wrap.innerHTML = '';
+
+  const ABIERTAS = ['NUEVO', 'COTIZACION ENVIADA', 'NEGOCIACION'];
+  const previas = filas.filter(f =>
+    f.mesCreado && f.mesCreado < mes && ABIERTAS.includes(f.etapa)
+  );
+
+  if (previas.length === 0) {
+    wrap.innerHTML = '<p class="empty-msg">No hay oportunidades abiertas de meses anteriores.</p>';
+    return;
+  }
+
+  const total = document.createElement('div');
+  total.className = 'arrastre-total';
+  total.innerHTML = `<div class="valor">${previas.length}</div><div class="label">oportunidades abiertas que vienen de antes</div>`;
+  wrap.appendChild(total);
+
+  const lista = document.createElement('div');
+  lista.className = 'arrastre-lista';
+  ABIERTAS.forEach(etapa => {
+    const n = previas.filter(f => f.etapa === etapa).length;
+    if (n === 0) return;
+    const fila = document.createElement('div');
+    fila.className = 'arrastre-row';
+    fila.innerHTML = `
+      <span class="arrastre-etapa">${ETAPAS_LABEL[etapa]}</span>
+      <div class="arrastre-track"><div class="arrastre-fill" style="width:${(n / previas.length) * 100}%"></div></div>
+      <span class="arrastre-valor">${n}</span>`;
+    lista.appendChild(fila);
+  });
+  wrap.appendChild(lista);
+
+  // De qué meses vienen
+  const porMes = {};
+  previas.forEach(f => { porMes[f.mesCreado] = (porMes[f.mesCreado] || 0) + 1; });
+  const detalle = document.createElement('div');
+  detalle.className = 'embudo-pie';
+  detalle.innerHTML = '<strong>Origen:</strong> ' +
+    Object.keys(porMes).sort().map(m => `${m} (${porMes[m]})`).join(' · ');
+  wrap.appendChild(detalle);
+
+  const nota = document.createElement('div');
+  nota.className = 'panel-nota';
+  nota.innerHTML = '<strong>Nota:</strong> No se cuentan en el embudo de este mes. ' +
+    'Al cerrarse impactan en el embudo de su mes de creación, y si se ganan, ' +
+    'su facturación se computa en el mes de la factura, no en el de origen.';
+  wrap.appendChild(nota);
+}
+
+/**
+ * Embudo de COHORTE: sigue el recorrido de las oportunidades creadas en el período,
+ * no una foto de dónde está cada una hoy.
+ *
+ * Regla de negocio (definida con Florencia): las únicas que NO recibieron cotización
+ * son las que siguen en etapa "Nuevo". Todas las demás — cotizadas, en negociación,
+ * ganadas y perdidas — pasaron por cotización antes.
+ */
+function renderFunnel(containerId, embudo) {
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = '';
+
+  const nuevo    = embudo.NUEVO || 0;
+  const enviada  = embudo['COTIZACION ENVIADA'] || 0;
+  const negoc    = embudo.NEGOCIACION || 0;
+  const ganadas  = embudo.GANADA || 0;
+  const perdidas = embudo.PERDIDA || 0;
+
+  const creadas   = nuevo + enviada + negoc + ganadas + perdidas;
+  const cotizadas = creadas - nuevo;   // todas menos las que nunca se contactaron
+  const definidas = ganadas + perdidas;
+
+  const etapas = [
+    { valor: creadas,   label: 'Creadas',   color: '#1C1B1A' },
+    { valor: cotizadas, label: 'Cotizadas', color: '#4A4744' },
+    { valor: ganadas,   label: 'Ganadas',   color: '#CA151E' },
+  ];
 
   const layout = document.createElement('div');
   layout.className = 'embudo-layout';
 
-  const valores = ETAPAS_FUNNEL.map(e => embudo[e] || 0);
-  const max = Math.max(...valores, 1);
-  const W = 340, STAGE_H = 62, MIN_W = 54;
-  const H = STAGE_H * ETAPAS_FUNNEL.length;
+  const max = Math.max(creadas, 1);
+  const W = 340, STAGE_H = 68, MIN_W = 54;
+  const H = STAGE_H * etapas.length;
   const widthFor = (v) => Math.max(MIN_W, (v / max) * W);
 
   let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:360px;display:block" xmlns="http://www.w3.org/2000/svg">`;
-  const colores = ['#1C1B1A', '#4A4744', '#8A8580', '#CA151E'];
-  ETAPAS_FUNNEL.forEach((etapa, i) => {
-    const wTop = widthFor(valores[i]);
-    const wBottom = i < ETAPAS_FUNNEL.length - 1 ? widthFor(valores[i + 1]) : wTop * 0.88;
+  etapas.forEach((et, i) => {
+    const wTop = widthFor(et.valor);
+    const wBottom = i < etapas.length - 1 ? widthFor(etapas[i + 1].valor) : wTop * 0.88;
     const y = i * STAGE_H;
     const xTopL = (W - wTop) / 2, xTopR = (W + wTop) / 2;
     const xBotL = (W - wBottom) / 2, xBotR = (W + wBottom) / 2;
-    svg += `<polygon points="${xTopL},${y} ${xTopR},${y} ${xBotR},${y + STAGE_H - 5} ${xBotL},${y + STAGE_H - 5}" fill="${colores[i]}" />`;
-    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 - 4}" text-anchor="middle" fill="#fff" font-family="Raleway,sans-serif" font-weight="900" font-size="17">${valores[i]}</text>`;
-    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 + 13}" text-anchor="middle" fill="#fff" font-family="Raleway,sans-serif" font-weight="600" font-size="10" opacity="0.8" letter-spacing="0.5">${ETAPAS_LABEL[etapa].toUpperCase()}</text>`;
+    svg += `<polygon points="${xTopL},${y} ${xTopR},${y} ${xBotR},${y + STAGE_H - 5} ${xBotL},${y + STAGE_H - 5}" fill="${et.color}" />`;
+    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 - 4}" text-anchor="middle" fill="#fff" font-family="Raleway,sans-serif" font-weight="900" font-size="18">${et.valor}</text>`;
+    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 + 14}" text-anchor="middle" fill="#fff" font-family="Raleway,sans-serif" font-weight="600" font-size="10" opacity="0.8" letter-spacing="0.5">${et.label.toUpperCase()}</text>`;
   });
   svg += `</svg>`;
 
@@ -95,30 +172,44 @@ function renderFunnel(containerId, embudo) {
   svgHolder.innerHTML = svg;
   layout.appendChild(svgHolder);
 
-  // Panel lateral: conversiones + perdidas
   const side = document.createElement('div');
   side.className = 'embudo-side';
 
-  const conversiones = [
-    { de: 0, a: 1, label: 'Nuevo → Cotización' },
-    { de: 1, a: 3, label: 'Cotización → Ganada' },
-  ];
-  conversiones.forEach(c => {
-    const base = valores[c.de];
-    const pct = base > 0 ? Math.round((valores[c.a] / base) * 100) : null;
+  const pct = (parte, base) => base > 0 ? Math.round((parte / base) * 100) + '%' : '—';
+  [
+    { valor: pct(cotizadas, creadas), label: 'De lo creado, se cotizó' },
+    { valor: pct(ganadas, cotizadas), label: 'De lo cotizado, se ganó' },
+    { valor: pct(ganadas, definidas), label: 'Tasa de cierre (ya definidas)' },
+  ].forEach(c => {
     const item = document.createElement('div');
     item.className = 'conv-item';
-    item.innerHTML = `<div class="conv-pct">${pct === null ? '—' : pct + '%'}</div><div class="conv-label">${c.label}</div>`;
+    item.innerHTML = `<div class="conv-pct">${c.valor}</div><div class="conv-label">${c.label}</div>`;
     side.appendChild(item);
   });
 
-  const perdidas = document.createElement('div');
-  perdidas.className = 'embudo-perdidas';
-  perdidas.innerHTML = `<div class="valor">${embudo.PERDIDA || 0}</div><div class="label">Perdidas</div>`;
-  side.appendChild(perdidas);
+  const p = document.createElement('div');
+  p.className = 'embudo-perdidas';
+  p.innerHTML = `<div class="valor">${perdidas}</div><div class="label">Perdidas</div>`;
+  side.appendChild(p);
 
   layout.appendChild(side);
   wrap.appendChild(layout);
+
+  // Detalle de en qué punto quedaron las que siguen abiertas
+  const abiertas = nuevo + enviada + negoc;
+  const pie = document.createElement('div');
+  pie.className = 'embudo-pie';
+  pie.innerHTML = abiertas > 0
+    ? `<strong>${abiertas} siguen abiertas:</strong> ${nuevo} sin contactar · ${enviada} esperando respuesta · ${negoc} en negociación`
+    : 'No quedan oportunidades abiertas de este período.';
+  wrap.appendChild(pie);
+
+  const nota = document.createElement('div');
+  nota.className = 'panel-nota';
+  nota.innerHTML = '<strong>Nota:</strong> Incluye únicamente oportunidades creadas en este mes, ' +
+    'se hayan cerrado o no. Los porcentajes se recalculan a medida que las abiertas se definen, ' +
+    'así que los meses recientes son menos representativos.';
+  wrap.appendChild(nota);
 }
 
 /** Donut de participación */
@@ -236,6 +327,7 @@ function pintarVentasGeneralDelMes(filas, meses) {
   document.getElementById('kpi-pendientes').textContent = pendientes;
   pintarDelta('kpi-ganadas-foot', embudo.GANADA, mesAnterior ? armarEmbudo(delMesCreado(mesAnterior)).GANADA : null, mesAnterior);
   renderFunnel('embudo-general', embudo);
+  renderArrastre('arrastre-general', filas, mes);
 
   // --- Facturación / top / etiquetas: mes de FACTURA ---
   const facturadasDe = (m) => filas.filter(f => f.califica === 'SI' && f.mesFactura === m);

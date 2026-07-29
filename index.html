@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reporte de Ventas · Expreso Luján</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -77,11 +77,21 @@
     <div class="panel-row">
       <div class="panel">
         <div class="panel-head">
-          <h2 class="panel-title">Embudo de ventas</h2>
-          <span class="panel-hint">oportunidades creadas en el mes</span>
+          <h2 class="panel-title">Embudo del mes</h2>
+          <span class="panel-hint">recorrido de las creadas en el mes</span>
         </div>
         <div id="embudo-general"></div>
       </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Vienen de meses anteriores</h2>
+          <span class="panel-hint">creadas antes y todavía sin cerrar</span>
+        </div>
+        <div id="arrastre-general"></div>
+      </div>
+    </div>
+
+    <div class="panel-row">
       <div class="panel">
         <div class="panel-head">
           <h2 class="panel-title">Facturación mes a mes</h2>
@@ -223,6 +233,6 @@
 
 <footer class="site-footer">Expreso Luján de Cuyo S.A. · Dashboard interno de ventas</footer>
 
-<script src="app.js?v=7"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

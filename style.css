@@ -405,4 +405,46 @@ footer.site-footer {
     font-weight: 900; border-top: 2px solid var(--black); padding: 7px 5px;
   }
   .print-nota { font-size: 8pt; color: #666; margin-top: 8px; font-style: italic; }
+  .panel-nota { font-size: 7.5pt; padding: 6px 8px; margin-top: 8px; }
+  .panel-nota strong { font-size: 7pt; }
+}
+
+/* ---------- Pie explicativo del embudo ---------- */
+.embudo-pie {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--gray); line-height: 1.6;
+}
+.embudo-pie strong { color: var(--gray-dark); font-weight: 800; }
+
+/* ---------- Arrastre de meses anteriores ---------- */
+.arrastre-total { text-align: center; padding: 6px 0 16px; }
+.arrastre-total .valor { font-size: 42px; font-weight: 900; line-height: 1; color: var(--black); }
+.arrastre-total .label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--gray); font-weight: 700; margin-top: 6px;
+}
+.arrastre-lista { margin-top: 4px; }
+.arrastre-row { display: grid; grid-template-columns: 130px 1fr 32px; align-items: center; gap: 10px; margin-bottom: 9px; }
+.arrastre-etapa { font-size: 12.5px; color: var(--gray-dark); font-weight: 600; }
+.arrastre-track { background: var(--cream); border-radius: 5px; height: 14px; overflow: hidden; }
+.arrastre-fill { height: 100%; border-radius: 5px; background: var(--gray-dark); }
+.arrastre-valor { text-align: right; font-weight: 800; font-size: 13px; }
+
+/* ---------- Nota aclaratoria al pie de un panel ---------- */
+.panel-nota {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--cream);
+  border-left: 3px solid var(--gray);
+  border-radius: 0 6px 6px 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--gray-dark);
+}
+.panel-nota strong {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-size: 10px;
+  color: var(--black);
 }
