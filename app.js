@@ -354,7 +354,7 @@ function pintarVentasGeneralDelMes(filas, meses) {
   pintarDelta('kpi-facturacion-foot', facturacionTotal, mesAnterior ? sumar(facturadasDe(mesAnterior)) : null, mesAnterior);
 
   const top10 = [...rowsFactura].sort((a, b) => b.ingresos - a.ingresos).slice(0, 10)
-    .map(f => ({ label: f.cliente || f.oportunidad, value: f.ingresos }));
+    .map(f => ({ label: f.oportunidad || f.cliente, value: f.ingresos }));
   renderBarras('top-clientes', top10, { formatValue: fmt, ranking: true, vacioMsg: 'No hay facturación de clientes nuevos en este mes.' });
 
   // Facturación mes a mes (destaca el mes activo)
@@ -532,7 +532,7 @@ function pintarComercial(nombre, filas, nombres) {
     lista.className = 'nota-lista';
     ganadasNoNuevas.forEach(g => {
       const li = document.createElement('li');
-      const nombreMostrar = g.cliente || g.oportunidad;
+      const nombreMostrar = g.oportunidad || g.cliente;
       const motivo = g.obs
         ? g.obs
         : (g.califica === 'NO' ? 'sin motivo cargado en OBS' : 'todavía sin verificar contra facturación');
@@ -774,7 +774,7 @@ function prepararDetallePdf(completo) {
 
     tr.innerHTML = `
       <td class="col-num">${i + 1}</td>
-      <td>${f.cliente || f.oportunidad}</td>
+      <td>${f.oportunidad || f.cliente}</td>
       <td>${f.vendedor}</td>
       <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
       <td class="${claseCal}">${califica}</td>
