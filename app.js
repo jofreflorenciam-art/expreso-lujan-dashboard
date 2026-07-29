@@ -446,17 +446,35 @@ function renderProgresoBono() {
 
   const tbody = document.getElementById('comisiones-tbody');
   tbody.innerHTML = '';
+
+  // Las columnas se ubican por cómo EMPIEZA el encabezado, no por el texto exacto.
+  // Así, si mañana se le cambia el final al título en el Sheet, el dashboard no se rompe.
+  const colFacturacion = buscarColumna(DATA.comisiones, 'facturacionnetaclientesnuevos');
+  const colBonoBruto   = buscarColumna(DATA.comisiones, 'bonobruto');
+  const colBonoFinal   = buscarColumna(DATA.comisiones, 'bonofinal');
+
   DATA.comisiones.forEach(row => {
     const tr = document.createElement('tr');
     if (row.Vendedor === 'TOTAL') tr.className = 'fila-total';
-    const bonoFinal = row['Bono Final (ajustado por tope)'];
+    const bonoFinal = colBonoFinal ? row[colBonoFinal] : 0;
     tr.innerHTML = `
       <td>${row.Vendedor}</td>
-      <td>${fmt(row['Facturación Neta Clientes Nuevos (acum.)'])}</td>
-      <td>${fmt(row['Bono Bruto (10%)'])}</td>
+      <td>${fmt(colFacturacion ? row[colFacturacion] : 0)}</td>
+      <td>${fmt(colBonoBruto ? row[colBonoBruto] : 0)}</td>
       <td class="${bonoFinal > 0 ? 'td-destacado' : ''}">${fmt(bonoFinal)}</td>`;
     tbody.appendChild(tr);
   });
+}
+
+/** Busca el nombre real de una columna a partir de cómo empieza su encabezado,
+ *  ignorando mayúsculas, tildes, espacios y signos. */
+function buscarColumna(filas, prefijoNormalizado) {
+  if (!filas || !filas.length) return null;
+  return Object.keys(filas[0]).find(k =>
+    k.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+     .toLowerCase().replace(/[^a-z0-9]/g, '')
+     .startsWith(prefijoNormalizado)
+  ) || null;
 }
 
 /* ---------------- NAV ---------------- */
@@ -562,9 +580,15 @@ function prepararDetallePdf(completo) {
       motivo = f.obs || 'Sin motivo cargado en OBS';
     } else {
       califica = 'Pendiente'; claseCal = 'cal-pend';
-      motivo = f.obs || (f.etapa === 'GANADA'
-        ? 'Ganada, falta verificar contra facturación'
-        : 'Todavía en ' + (ETAPAS_LABEL[f.etapa] || f.etapa).toLowerCase());
+      if (f.obs) {
+        motivo = f.obs;
+      } else if (f.etapa === 'GANADA') {
+        motivo = 'Ganada, falta verificar contra facturación';
+      } else if (f.etapa === 'PERDIDA') {
+        motivo = 'Oportunidad perdida, no aplica';
+      } else {
+        motivo = 'Todavía en ' + (ETAPAS_LABEL[f.etapa] || f.etapa).toLowerCase() + ', sin facturar';
+      }
     }
 
     tr.innerHTML = `
