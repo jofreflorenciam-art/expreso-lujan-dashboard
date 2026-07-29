@@ -2,11 +2,18 @@ const API_URL = "https://script.google.com/macros/s/AKfycbxDWo1sJI7Sq36gkigBYAcC
 
 const MONEY = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
 const fmt = (n) => '$' + MONEY.format(Math.round(n || 0));
+const fmtCorto = (n) => {
+  n = n || 0;
+  if (Math.abs(n) >= 1e6) return '$' + (n / 1e6).toFixed(1).replace('.', ',') + 'M';
+  if (Math.abs(n) >= 1e3) return '$' + Math.round(n / 1e3) + 'k';
+  return fmt(n);
+};
 
-const ETAPAS_ORDEN = ["NUEVO", "COTIZACION ENVIADA", "NEGOCIACION", "GANADA", "PERDIDA"];
 const ETAPAS_LABEL = { NUEVO: "Nuevo", "COTIZACION ENVIADA": "Cotización enviada", NEGOCIACION: "Negociación", GANADA: "Ganada", PERDIDA: "Perdida" };
+const COLORES_COMERCIAL = ['#CA151E', '#1C1B1A', '#8A8580', '#981017', '#4A4744'];
 
 let DATA = null;
+let MES_ACTUAL = null;
 
 async function cargarDatos() {
   const statusEl = document.getElementById('status-carga');
@@ -29,14 +36,11 @@ async function cargarDatos() {
 }
 
 function intentarRenderizar(nombre, fn) {
-  try {
-    fn();
-  } catch (err) {
-    console.error('Error renderizando ' + nombre + ':', err);
-  }
+  try { fn(); } catch (err) { console.error('Error renderizando ' + nombre + ':', err); }
 }
 
-/** Barra horizontal simple hecha con CSS/HTML (sin librerías externas, no depende de ningún CDN) */
+/* ---------------- COMPONENTES VISUALES ---------------- */
+
 function renderBarras(containerId, entries, opciones) {
   opciones = opciones || {};
   const wrap = document.getElementById(containerId);
@@ -46,189 +50,380 @@ function renderBarras(containerId, entries, opciones) {
     return;
   }
   const max = Math.max(...entries.map(e => e.value), 1);
-  entries.forEach(e => {
+  entries.forEach((e, i) => {
     const row = document.createElement('div');
     row.className = 'simple-bar-row';
+    const rank = opciones.ranking ? `<span class="simple-bar-rank">${i + 1}</span>` : '';
     row.innerHTML = `
-      <span class="simple-bar-label" title="${e.label}">${e.label}</span>
+      <span class="simple-bar-label" title="${e.label}">${rank}${e.label}</span>
       <div class="simple-bar-track"><div class="simple-bar-fill" style="width:${(e.value / max) * 100}%; background:${e.color || 'var(--red)'}"></div></div>
       <span class="simple-bar-value">${opciones.formatValue ? opciones.formatValue(e.value) : e.value}</span>`;
     wrap.appendChild(row);
   });
 }
 
-/** Dibuja un embudo real (trapecios apilados) para las etapas de avance,
- *  y muestra "Perdida" aparte como salida del embudo (no como escalón). */
+/** Embudo real + tasas de conversión entre etapas */
 function renderFunnel(containerId, embudo) {
   const ETAPAS_FUNNEL = ["NUEVO", "COTIZACION ENVIADA", "NEGOCIACION", "GANADA"];
   const wrap = document.getElementById(containerId);
   wrap.innerHTML = '';
 
-  const outer = document.createElement('div');
-  outer.className = 'embudo-svg-wrap';
+  const layout = document.createElement('div');
+  layout.className = 'embudo-layout';
 
   const valores = ETAPAS_FUNNEL.map(e => embudo[e] || 0);
   const max = Math.max(...valores, 1);
-  const W = 320, H = 210, STAGE_H = H / ETAPAS_FUNNEL.length, MIN_W = 40;
-
+  const W = 340, STAGE_H = 62, MIN_W = 54;
+  const H = STAGE_H * ETAPAS_FUNNEL.length;
   const widthFor = (v) => Math.max(MIN_W, (v / max) * W);
 
-  let svg = `<svg viewBox="0 0 ${W} ${H + 90}" width="100%" style="max-width:360px" xmlns="http://www.w3.org/2000/svg">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:360px;display:block" xmlns="http://www.w3.org/2000/svg">`;
   const colores = ['#1C1B1A', '#4A4744', '#8A8580', '#CA151E'];
   ETAPAS_FUNNEL.forEach((etapa, i) => {
     const wTop = widthFor(valores[i]);
-    const wBottom = i < ETAPAS_FUNNEL.length - 1 ? widthFor(valores[i + 1]) : wTop * 0.9;
+    const wBottom = i < ETAPAS_FUNNEL.length - 1 ? widthFor(valores[i + 1]) : wTop * 0.88;
     const y = i * STAGE_H;
     const xTopL = (W - wTop) / 2, xTopR = (W + wTop) / 2;
     const xBotL = (W - wBottom) / 2, xBotR = (W + wBottom) / 2;
-    svg += `<polygon points="${xTopL},${y} ${xTopR},${y} ${xBotR},${y + STAGE_H - 4} ${xBotL},${y + STAGE_H - 4}" fill="${colores[i]}" />`;
-    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 - 6}" text-anchor="middle" fill="#fff" font-family="Raleway" font-weight="800" font-size="15">${valores[i]}</text>`;
-    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 + 12}" text-anchor="middle" fill="#fff" font-family="Raleway" font-weight="500" font-size="10.5" opacity="0.85">${ETAPAS_LABEL[etapa]}</text>`;
+    svg += `<polygon points="${xTopL},${y} ${xTopR},${y} ${xBotR},${y + STAGE_H - 5} ${xBotL},${y + STAGE_H - 5}" fill="${colores[i]}" />`;
+    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 - 4}" text-anchor="middle" fill="#fff" font-family="Raleway,sans-serif" font-weight="900" font-size="17">${valores[i]}</text>`;
+    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 + 13}" text-anchor="middle" fill="#fff" font-family="Raleway,sans-serif" font-weight="600" font-size="10" opacity="0.8" letter-spacing="0.5">${ETAPAS_LABEL[etapa].toUpperCase()}</text>`;
   });
   svg += `</svg>`;
 
   const svgHolder = document.createElement('div');
-  svgHolder.style.flex = '1';
   svgHolder.innerHTML = svg;
-  outer.appendChild(svgHolder);
+  layout.appendChild(svgHolder);
+
+  // Panel lateral: conversiones + perdidas
+  const side = document.createElement('div');
+  side.className = 'embudo-side';
+
+  const conversiones = [
+    { de: 0, a: 1, label: 'Nuevo → Cotización' },
+    { de: 1, a: 3, label: 'Cotización → Ganada' },
+  ];
+  conversiones.forEach(c => {
+    const base = valores[c.de];
+    const pct = base > 0 ? Math.round((valores[c.a] / base) * 100) : null;
+    const item = document.createElement('div');
+    item.className = 'conv-item';
+    item.innerHTML = `<div class="conv-pct">${pct === null ? '—' : pct + '%'}</div><div class="conv-label">${c.label}</div>`;
+    side.appendChild(item);
+  });
 
   const perdidas = document.createElement('div');
   perdidas.className = 'embudo-perdidas';
   perdidas.innerHTML = `<div class="valor">${embudo.PERDIDA || 0}</div><div class="label">Perdidas</div>`;
-  outer.appendChild(perdidas);
+  side.appendChild(perdidas);
 
-  wrap.appendChild(outer);
+  layout.appendChild(side);
+  wrap.appendChild(layout);
 }
 
-function actualizarVistaMes(vg, mes) {
-  document.getElementById('kpi-facturacion-label').textContent = `Facturación clientes nuevos — ${mes}`;
-  document.getElementById('kpi-facturacion-total').textContent = fmt(vg.facturacionPorMes[mes] || 0);
+/** Donut de participación */
+function renderDonut(containerId, legendId, entries) {
+  const wrap = document.getElementById(containerId);
+  const legend = document.getElementById(legendId);
+  wrap.innerHTML = ''; legend.innerHTML = '';
+  const total = entries.reduce((a, e) => a + e.value, 0);
+  if (total <= 0) {
+    wrap.innerHTML = '<p class="empty-msg">Sin facturación cargada.</p>';
+    return;
+  }
+  const R = 70, STROKE = 26, C = 2 * Math.PI * R, SIZE = 190;
+  let offset = 0;
+  let svg = `<svg viewBox="0 0 ${SIZE} ${SIZE}" width="100%" style="max-width:190px;display:block" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<g transform="translate(${SIZE / 2},${SIZE / 2}) rotate(-90)">`;
+  entries.forEach((e, i) => {
+    const frac = e.value / total;
+    const color = COLORES_COMERCIAL[i % COLORES_COMERCIAL.length];
+    svg += `<circle r="${R}" fill="none" stroke="${color}" stroke-width="${STROKE}"
+      stroke-dasharray="${frac * C} ${C}" stroke-dashoffset="${-offset}" />`;
+    offset += frac * C;
+  });
+  svg += `</g>`;
+  svg += `<text x="${SIZE / 2}" y="${SIZE / 2 - 4}" text-anchor="middle" font-family="Raleway,sans-serif" font-weight="900" font-size="19">${fmtCorto(total)}</text>`;
+  svg += `<text x="${SIZE / 2}" y="${SIZE / 2 + 13}" text-anchor="middle" font-family="Raleway,sans-serif" font-weight="700" font-size="8.5" fill="#8A8580" letter-spacing="0.8">TOTAL EQUIPO</text>`;
+  svg += `</svg>`;
+  wrap.innerHTML = svg;
 
-  // Top 10 clientes del mes elegido
-  const filasDelMes = (vg.detalleFacturacion || []).filter(f => f.mes === mes);
-  const top10 = filasDelMes
-    .sort((a, b) => b.facturacion - a.facturacion)
-    .slice(0, 10)
-    .map(f => ({ label: f.cliente || f.oportunidad, value: f.facturacion }));
-  renderBarras('top-clientes', top10, { formatValue: fmt, vacioMsg: 'No hay facturación de clientes nuevos cargada para este mes.' });
+  entries.forEach((e, i) => {
+    const color = COLORES_COMERCIAL[i % COLORES_COMERCIAL.length];
+    const pct = Math.round((e.value / total) * 100);
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `
+      <span class="legend-dot" style="background:${color}"></span>
+      <span class="legend-name">${e.label}<br><span class="legend-pct">${pct}% del total</span></span>
+      <span class="legend-val">${fmt(e.value)}</span>`;
+    legend.appendChild(item);
+  });
 }
 
-/* ---------------- VENTAS GENERAL ---------------- */
+/** Anillo de progreso para el bono */
+function renderRing(containerId, pct, textoCentro, subtexto) {
+  const wrap = document.getElementById(containerId);
+  const R = 78, STROKE = 18, C = 2 * Math.PI * R, SIZE = 200;
+  const frac = Math.max(0, Math.min(1, pct / 100));
+  const color = frac >= 1 ? '#CA151E' : '#1C1B1A';
+  let svg = `<svg viewBox="0 0 ${SIZE} ${SIZE}" width="100%" style="max-width:200px;display:block" xmlns="http://www.w3.org/2000/svg">`;
+  svg += `<g transform="translate(${SIZE / 2},${SIZE / 2}) rotate(-90)">`;
+  svg += `<circle r="${R}" fill="none" stroke="#F7F6F4" stroke-width="${STROKE}" />`;
+  svg += `<circle r="${R}" fill="none" stroke="${color}" stroke-width="${STROKE}" stroke-linecap="round"
+    stroke-dasharray="${frac * C} ${C}" />`;
+  svg += `</g>`;
+  svg += `<text x="${SIZE / 2}" y="${SIZE / 2 - 2}" text-anchor="middle" font-family="Raleway,sans-serif" font-weight="900" font-size="30">${textoCentro}</text>`;
+  svg += `<text x="${SIZE / 2}" y="${SIZE / 2 + 18}" text-anchor="middle" font-family="Raleway,sans-serif" font-weight="700" font-size="9" fill="#8A8580" letter-spacing="0.6">${subtexto}</text>`;
+  svg += `</svg>`;
+  wrap.innerHTML = svg;
+}
+
+function pintarDelta(containerId, actual, anterior, etiquetaAnterior) {
+  const cont = document.getElementById(containerId);
+  cont.innerHTML = '';
+  if (anterior === null || anterior === undefined) {
+    cont.innerHTML = `<span class="kpi-sub">Sin mes previo para comparar</span>`;
+    return;
+  }
+  if (anterior === 0) {
+    cont.innerHTML = `<span class="kpi-sub">${etiquetaAnterior}: —</span>`;
+    return;
+  }
+  const pct = Math.round(((actual - anterior) / anterior) * 100);
+  const clase = pct > 0 ? 'kpi-delta--up' : (pct < 0 ? 'kpi-delta--down' : 'kpi-delta--flat');
+  const flecha = pct > 0 ? '▲' : (pct < 0 ? '▼' : '=');
+  cont.innerHTML = `<span class="kpi-delta ${clase}">${flecha} ${Math.abs(pct)}%</span><span class="kpi-sub">vs ${etiquetaAnterior}</span>`;
+}
+
+/* ---------------- VENTAS GENERAL ----------------
+ * Todo se filtra por el mes elegido:
+ * - Embudo / ganadas / pendientes: por MES DE CREACIÓN de la oportunidad
+ *   (una ganada sin factura todavía no tiene mes de factura, así que
+ *   "pendientes" solo puede ser subconjunto de "ganadas" si ambos usan creación).
+ * - Facturación / top clientes / etiquetas: por MES DE FACTURA (es plata facturada). */
 function renderVentasGeneral() {
-  const vg = DATA.ventasGeneral;
+  const filas = DATA.filas;
+  const meses = [...new Set(filas.flatMap(f => [f.mesCreado, f.mesFactura]).filter(m => m && m !== 'Sin fecha'))].sort();
 
-  document.getElementById('kpi-ganadas').textContent = vg.embudo.GANADA;
-  document.getElementById('kpi-pendientes').textContent = vg.gananadasPendientesDeConfirmar;
-
-  const meses = Object.keys(vg.facturacionPorMes).sort();
   const selector = document.getElementById('mes-selector');
-  const mesPrevio = selector.value;
+  const mesPrevio = MES_ACTUAL;
   selector.innerHTML = meses.map(m => `<option value="${m}">${m}</option>`).join('');
-  const mesElegido = meses.includes(mesPrevio) ? mesPrevio : meses[meses.length - 1];
-  selector.value = mesElegido;
-  selector.onchange = () => actualizarVistaMes(vg, selector.value);
-  actualizarVistaMes(vg, mesElegido);
+  MES_ACTUAL = meses.includes(mesPrevio) ? mesPrevio : meses[meses.length - 1];
+  selector.value = MES_ACTUAL;
+  selector.onchange = () => { MES_ACTUAL = selector.value; pintarVentasGeneralDelMes(filas, meses); };
 
-  renderFunnel('embudo-general', vg.embudo);
+  pintarVentasGeneralDelMes(filas, meses);
+}
 
-  const entradasMes = meses.map(m => ({ label: m, value: vg.facturacionPorMes[m] }));
-  renderBarras('facturacion-mes-barras', entradasMes, { formatValue: fmt });
+function pintarVentasGeneralDelMes(filas, meses) {
+  const mes = MES_ACTUAL;
+  const idx = meses.indexOf(mes);
+  const mesAnterior = idx > 0 ? meses[idx - 1] : null;
 
-  renderEtiquetas(vg.etiquetasPorCategoria, 'Rubro');
+  // --- Embudo / ganadas / pendientes: mes de CREACIÓN ---
+  const delMesCreado = (m) => filas.filter(f => f.mesCreado === m);
+  const armarEmbudo = (rows) => {
+    const e = { NUEVO: 0, "COTIZACION ENVIADA": 0, NEGOCIACION: 0, GANADA: 0, PERDIDA: 0 };
+    rows.forEach(f => { if (e.hasOwnProperty(f.etapa)) e[f.etapa]++; });
+    return e;
+  };
+  const rowsMes = delMesCreado(mes);
+  const embudo = armarEmbudo(rowsMes);
+  const pendientes = rowsMes.filter(f => f.etapa === 'GANADA' && !f.tieneFactura).length;
+
+  document.getElementById('kpi-ganadas').textContent = embudo.GANADA;
+  document.getElementById('kpi-pendientes').textContent = pendientes;
+  pintarDelta('kpi-ganadas-foot', embudo.GANADA, mesAnterior ? armarEmbudo(delMesCreado(mesAnterior)).GANADA : null, mesAnterior);
+  renderFunnel('embudo-general', embudo);
+
+  // --- Facturación / top / etiquetas: mes de FACTURA ---
+  const facturadasDe = (m) => filas.filter(f => f.califica === 'SI' && f.mesFactura === m);
+  const sumar = (rows) => rows.reduce((acc, f) => acc + f.ingresos, 0);
+  const rowsFactura = facturadasDe(mes);
+  const facturacionTotal = sumar(rowsFactura);
+
+  document.getElementById('kpi-facturacion-label').textContent = `Facturación clientes nuevos · ${mes}`;
+  document.getElementById('kpi-facturacion-total').textContent = fmt(facturacionTotal);
+  pintarDelta('kpi-facturacion-foot', facturacionTotal, mesAnterior ? sumar(facturadasDe(mesAnterior)) : null, mesAnterior);
+
+  const top10 = [...rowsFactura].sort((a, b) => b.ingresos - a.ingresos).slice(0, 10)
+    .map(f => ({ label: f.cliente || f.oportunidad, value: f.ingresos }));
+  renderBarras('top-clientes', top10, { formatValue: fmt, ranking: true, vacioMsg: 'No hay facturación de clientes nuevos en este mes.' });
+
+  // Facturación mes a mes (destaca el mes activo)
+  const totales = {};
+  filas.forEach(f => {
+    if (f.califica === 'SI' && f.mesFactura && f.mesFactura !== 'Sin fecha') {
+      totales[f.mesFactura] = (totales[f.mesFactura] || 0) + f.ingresos;
+    }
+  });
+  const mesesFact = Object.keys(totales).sort();
+  renderBarras('facturacion-mes-barras',
+    mesesFact.map(m => ({ label: m, value: totales[m], color: m === mes ? 'var(--red)' : 'var(--gray)' })),
+    { formatValue: fmt, vacioMsg: 'Todavía no hay facturación cargada.' });
+
+  // Etiquetas del mes
+  const dicc = DATA.diccionarioEtiquetas || {};
+  const porCategoria = {};
+  rowsFactura.forEach(f => {
+    f.etiquetas.split(',').map(t => t.trim()).filter(Boolean).forEach(tag => {
+      const cat = dicc[tag.toLowerCase()] || 'Sin clasificar';
+      if (!porCategoria[cat]) porCategoria[cat] = {};
+      porCategoria[cat][tag] = (porCategoria[cat][tag] || 0) + f.ingresos;
+    });
+  });
+  window.ETIQUETAS_DEL_MES = porCategoria;
+  const tabActiva = document.querySelector('.tag-tab.active');
+  renderEtiquetas(porCategoria, tabActiva ? tabActiva.dataset.cat : 'Rubro');
   document.querySelectorAll('.tag-tab').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.tag-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      renderEtiquetas(vg.etiquetasPorCategoria, btn.dataset.cat);
+      renderEtiquetas(window.ETIQUETAS_DEL_MES, btn.dataset.cat);
     };
   });
 }
 
-function renderEtiquetas(etiquetasPorCategoria, categoria) {
-  const datos = etiquetasPorCategoria[categoria] || {};
-  const entries = Object.entries(datos)
-    .sort((a, b) => b[1].facturacion - a[1].facturacion)
-    .slice(0, 8)
-    .map(([tag, info]) => ({ label: tag, value: info.facturacion }));
-  renderBarras('etiquetas-lista', entries, { formatValue: fmt, vacioMsg: 'Todavía no hay etiquetas cargadas en esta categoría.' });
+function renderEtiquetas(porCategoria, categoria) {
+  const datos = porCategoria[categoria] || {};
+  const entries = Object.entries(datos).sort((a, b) => b[1] - a[1]).slice(0, 8)
+    .map(([tag, valor]) => ({ label: tag, value: valor }));
+  renderBarras('etiquetas-lista', entries, { formatValue: fmt, vacioMsg: 'No hay etiquetas de esta categoría facturadas en este mes.' });
 }
 
-/* ---------------- POR COMERCIAL ---------------- */
+/* ---------------- POR COMERCIAL (acumulado) ---------------- */
 function renderPorComercial() {
+  const filas = DATA.filas;
+  const nombres = [...new Set(filas.map(f => f.vendedor).filter(Boolean))];
+
   const selector = document.getElementById('comercial-selector');
   selector.innerHTML = '';
-  const opciones = ['Todos', ...DATA.porComercial.map(p => p.vendedor)];
-  opciones.forEach((nombre, i) => {
+  ['Todos', ...nombres].forEach((nombre, i) => {
     const btn = document.createElement('button');
     btn.className = 'pill' + (i === 0 ? ' active' : '');
     btn.textContent = nombre;
     btn.onclick = () => {
       document.querySelectorAll('#comercial-selector .pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      pintarComercial(nombre);
+      pintarComercial(nombre, filas, nombres);
     };
     selector.appendChild(btn);
   });
-  pintarComercial('Todos');
+  pintarComercial('Todos', filas, nombres);
 }
 
-function pintarComercial(nombre) {
-  if (nombre === 'Todos') {
-    document.getElementById('comercial-chart-wrap').style.display = 'block';
-    document.getElementById('comercial-kpis').style.display = 'none';
-    const entradas = DATA.porComercial.map(p => ({ label: p.vendedor, value: p.facturacionClientesNuevos }));
-    renderBarras('comparativa-barras', entradas, { formatValue: fmt });
+function pintarComercial(nombre, filas, nombres) {
+  const esTodos = nombre === 'Todos';
+  document.getElementById('comercial-chart-wrap').style.display = esTodos ? 'block' : 'none';
+  document.getElementById('comercial-kpis').style.display = esTodos ? 'none' : 'grid';
+  document.getElementById('panel-embudo-comercial').style.display = esTodos ? 'none' : 'block';
+
+  const factDe = (v) => filas.filter(f => f.vendedor === v && f.califica === 'SI').reduce((a, f) => a + f.ingresos, 0);
+
+  if (esTodos) {
+    const entries = nombres.map(v => ({ label: v, value: factDe(v) })).sort((a, b) => b.value - a.value);
+    renderDonut('donut-comerciales', 'donut-legend', entries);
     return;
   }
-  document.getElementById('comercial-chart-wrap').style.display = 'none';
-  document.getElementById('comercial-kpis').style.display = 'grid';
-  const persona = DATA.porComercial.find(p => p.vendedor === nombre);
-  document.getElementById('com-kpi-facturacion').textContent = fmt(persona.facturacionClientesNuevos);
-  document.getElementById('com-kpi-clientes').textContent = persona.clientesNuevos;
-  document.getElementById('com-kpi-ganadas').textContent = persona.embudo.GANADA;
 
-  const noNuevas = persona.ganadasNoNuevas || [];
+  const filasPersona = filas.filter(f => f.vendedor === nombre);
+  const embudo = { NUEVO: 0, "COTIZACION ENVIADA": 0, NEGOCIACION: 0, GANADA: 0, PERDIDA: 0 };
+  let facturacion = 0, clientesNuevos = 0;
+  const ganadasNoNuevas = [];
+  filasPersona.forEach(f => {
+    if (embudo.hasOwnProperty(f.etapa)) embudo[f.etapa]++;
+    if (f.califica === 'SI') { facturacion += f.ingresos; clientesNuevos++; }
+    else if (f.etapa === 'GANADA') ganadasNoNuevas.push({ oportunidad: f.oportunidad, cliente: f.cliente, obs: f.obs });
+  });
+
+  document.getElementById('com-kpi-facturacion').textContent = fmt(facturacion);
+  document.getElementById('com-kpi-clientes').textContent = clientesNuevos;
+  document.getElementById('com-kpi-ganadas').textContent = embudo.GANADA;
+
+  const totalEquipo = nombres.reduce((a, v) => a + factDe(v), 0);
+  const share = totalEquipo > 0 ? Math.round((facturacion / totalEquipo) * 100) : 0;
+  document.getElementById('com-kpi-facturacion-foot').innerHTML =
+    `<span class="kpi-delta kpi-delta--flat">${share}%</span><span class="kpi-sub">del total del equipo</span>`;
+
   const notaEl = document.getElementById('com-kpi-clientes-note');
-  if (noNuevas.length > 0) {
-    const nombres = noNuevas.map(g => g.cliente || g.oportunidad).join(', ');
-    notaEl.textContent = `${noNuevas.length} ganada(s) ya facturaban antes, no cuentan para el bono: ${nombres}`;
+  notaEl.innerHTML = '';
+  if (ganadasNoNuevas.length > 0) {
+    const intro = document.createElement('div');
+    intro.textContent = `${ganadasNoNuevas.length} ganada(s) no cuentan para el bono:`;
+    notaEl.appendChild(intro);
+    const lista = document.createElement('ul');
+    lista.className = 'nota-lista';
+    ganadasNoNuevas.forEach(g => {
+      const li = document.createElement('li');
+      const nombreMostrar = g.cliente || g.oportunidad;
+      const motivo = g.obs ? g.obs : 'sin motivo cargado en OBS';
+      li.innerHTML = `<span class="nl-nombre">${nombreMostrar}</span><br><span class="nl-motivo">${motivo}</span>`;
+      lista.appendChild(li);
+    });
+    notaEl.appendChild(lista);
   } else {
-    notaEl.textContent = 'Todas las ganadas son de clientes nuevos.';
+    notaEl.textContent = 'Todas sus ganadas son de clientes nuevos.';
   }
 
-  renderFunnel('embudo-comercial', persona.embudo);
+  renderFunnel('embudo-comercial', embudo);
 }
 
 /* ---------------- PROGRESO AL BONO ---------------- */
 function renderProgresoBono() {
   const objetivo = DATA.objetivoBono[0]['Objetivo Mensual'];
-  document.getElementById('bono-objetivo-label').textContent = fmt(objetivo) + ' / mes, 2 meses seguidos';
+  document.getElementById('bono-objetivo-label').textContent =
+    `Se necesita alcanzar ${fmt(objetivo)} de facturación de clientes nuevos durante 2 meses consecutivos. El bono se paga una sola vez.`;
 
+  const conDatos = DATA.objetivoBono.filter(m => m['Facturación Neta Clientes Nuevos'] > 0);
   const desbloqueado = DATA.objetivoBono.some(m => m['¿2 Meses Consecutivos? (Bono Grupal)'] === 'BONO DESBLOQUEADO');
+
+  // Anillo: mejor mes alcanzado respecto al objetivo
+  const mejor = conDatos.reduce((max, m) => Math.max(max, m['Facturación Neta Clientes Nuevos']), 0);
+  const pctMejor = objetivo > 0 ? (mejor / objetivo) * 100 : 0;
+  renderRing('bono-ring', pctMejor, Math.round(pctMejor) + '%', 'MEJOR MES vs OBJETIVO');
+
   const banner = document.getElementById('bono-banner');
+  const explica = document.getElementById('bono-explica');
+  const mesesCumplidos = conDatos.filter(m => m['¿Cumple Objetivo?'] === 'SI').length;
+
   if (desbloqueado) {
-    banner.textContent = '🎉 Bono grupal DESBLOQUEADO';
+    banner.textContent = 'Bono grupal DESBLOQUEADO';
     banner.className = 'bono-banner bono-banner--ok';
+    explica.innerHTML = `Se alcanzó el objetivo <strong>2 meses consecutivos</strong>. El detalle por comercial está en la tabla de abajo.`;
   } else {
-    banner.textContent = 'Bono grupal todavía no desbloqueado';
+    banner.textContent = 'Bono todavía no desbloqueado';
     banner.className = 'bono-banner';
+    const faltante = Math.max(0, objetivo - mejor);
+    explica.innerHTML = mesesCumplidos === 0
+      ? `Ningún mes alcanzó el objetivo todavía. Al mejor mes le faltaron <strong>${fmt(faltante)}</strong> para llegar a la meta.`
+      : `Hay <strong>${mesesCumplidos} mes(es)</strong> que cumplieron el objetivo, pero todavía no se dieron <strong>2 meses consecutivos</strong>.`;
   }
 
-  const relevantes = DATA.objetivoBono.filter(m => m['Facturación Neta Clientes Nuevos'] > 0).slice(0, 6);
   const ruta = document.getElementById('ruta-meses');
   ruta.innerHTML = '';
-  relevantes.forEach(m => {
-    const pct = Math.min(100, (m['Facturación Neta Clientes Nuevos'] / objetivo) * 100);
+  if (conDatos.length === 0) {
+    ruta.innerHTML = '<p class="empty-msg">Todavía no hay facturación cargada.</p>';
+  }
+  conDatos.slice(0, 6).forEach(m => {
+    const valor = m['Facturación Neta Clientes Nuevos'];
+    const pct = Math.min(100, (valor / objetivo) * 100);
     const cumple = m['¿Cumple Objetivo?'] === 'SI';
     const stop = document.createElement('div');
     stop.className = 'ruta-stop';
     stop.innerHTML = `
-      <div class="ruta-mes">${m['Mes']}</div>
+      <div class="ruta-top">
+        <span class="ruta-mes">${m['Mes']}</span>
+        <span>
+          <span class="ruta-monto">${fmt(valor)}</span>
+          <span class="ruta-pct">de ${fmt(objetivo)} · ${pct.toFixed(0)}%</span>
+          <span class="ruta-badge ${cumple ? 'ruta-badge--ok' : ''}">${cumple ? 'Cumplido' : 'No cumplido'}</span>
+        </span>
+      </div>
       <div class="ruta-track">
         <div class="ruta-fill ${cumple ? 'ruta-fill--ok' : ''}" style="width:${pct}%"></div>
         <div class="ruta-truck" style="left:${pct}%">🚚</div>
-      </div>
-      <div class="ruta-monto">${fmt(m['Facturación Neta Clientes Nuevos'])} <span class="ruta-pct">(${pct.toFixed(0)}%)</span></div>`;
+      </div>`;
     ruta.appendChild(stop);
   });
 
@@ -237,11 +432,12 @@ function renderProgresoBono() {
   DATA.comisiones.forEach(row => {
     const tr = document.createElement('tr');
     if (row.Vendedor === 'TOTAL') tr.className = 'fila-total';
+    const bonoFinal = row['Bono Final (ajustado por tope)'];
     tr.innerHTML = `
       <td>${row.Vendedor}</td>
       <td>${fmt(row['Facturación Neta Clientes Nuevos (acum.)'])}</td>
       <td>${fmt(row['Bono Bruto (10%)'])}</td>
-      <td>${fmt(row['Bono Final (ajustado por tope)'])}</td>`;
+      <td class="${bonoFinal > 0 ? 'td-destacado' : ''}">${fmt(bonoFinal)}</td>`;
     tbody.appendChild(tr);
   });
 }
