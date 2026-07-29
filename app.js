@@ -427,6 +427,23 @@ function renderProgresoBono() {
     ruta.appendChild(stop);
   });
 
+  // Deja explícito de qué meses sale la base del bono (la racha vigente).
+  // Se busca la columna de forma tolerante, por si el encabezado tiene un typo.
+  const claveCuenta = DATA.objetivoBono.length
+    ? Object.keys(DATA.objetivoBono[0]).find(k => k.toLowerCase().replace(/[^a-z]/g, '').startsWith('cuentaparaelb'))
+    : null;
+  const mesesQueCuentan = claveCuenta
+    ? DATA.objetivoBono
+        .filter(m => String(m[claveCuenta] || '').toUpperCase().trim() === 'SI')
+        .map(m => m['Mes'])
+    : [];
+  const hint = document.getElementById('comisiones-hint');
+  if (hint) {
+    hint.textContent = mesesQueCuentan.length
+      ? `base: ${mesesQueCuentan.join(' + ')} · la racha se resetea si un mes no llega`
+      : 'bono único · la base se resetea si un mes no llega';
+  }
+
   const tbody = document.getElementById('comisiones-tbody');
   tbody.innerHTML = '';
   DATA.comisiones.forEach(row => {
@@ -534,26 +551,46 @@ function prepararDetallePdf(completo) {
   filas.forEach((f, i) => {
     const tr = document.createElement('tr');
     if (f.califica === 'SI') tr.className = 'es-nuevo';
+
+    // Tres estados: califica, no califica, o todavía sin verificar
+    let califica, claseCal, motivo;
+    if (f.califica === 'SI') {
+      califica = 'Sí'; claseCal = 'cal-si';
+      motivo = f.obs || '';
+    } else if (f.califica === 'NO') {
+      califica = 'No'; claseCal = 'cal-no';
+      motivo = f.obs || 'Sin motivo cargado en OBS';
+    } else {
+      califica = 'Pendiente'; claseCal = 'cal-pend';
+      motivo = f.obs || (f.etapa === 'GANADA'
+        ? 'Ganada, falta verificar contra facturación'
+        : 'Todavía en ' + (ETAPAS_LABEL[f.etapa] || f.etapa).toLowerCase());
+    }
+
     tr.innerHTML = `
-      <td>${i + 1}</td>
+      <td class="col-num">${i + 1}</td>
       <td>${f.cliente || f.oportunidad}</td>
       <td>${f.vendedor}</td>
       <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
-      <td>${f.califica === 'SI' ? 'Sí' : (f.etapa === 'GANADA' ? 'No' : '—')}</td>
-      <td class="num">${f.ingresos > 0 ? fmt(f.ingresos) : '—'}</td>`;
+      <td class="${claseCal}">${califica}</td>
+      <td class="num">${f.ingresos > 0 ? fmt(f.ingresos) : '—'}</td>
+      <td class="col-obs">${motivo}</td>`;
     tbody.appendChild(tr);
   });
 
   const total = filas.reduce((acc, f) => acc + f.ingresos, 0);
-  const cuentanBono = filas.filter(f => f.califica === 'SI').length;
+  const califican = filas.filter(f => f.califica === 'SI').length;
+  const noCalifican = filas.filter(f => f.califica === 'NO').length;
+  const pendientes = filas.length - califican - noCalifican;
   document.getElementById('detalle-tfoot').innerHTML = `
     <tr>
-      <td colspan="5">Total (${filas.length} oportunidades · ${cuentanBono} de clientes nuevos)</td>
+      <td colspan="5">Total: ${filas.length} oportunidades · ${califican} califican · ${noCalifican} no califican · ${pendientes} pendientes de verificar</td>
       <td class="num">${fmt(total)}</td>
+      <td></td>
     </tr>`;
 
   document.getElementById('detalle-nota').textContent =
-    descripcion + ' Las filas marcadas con una línea roja a la izquierda son las de clientes nuevos que computan para el bono.';
+    descripcion + ' "Califica" significa que se verificó contra facturación y cumple el criterio de cliente nuevo (sin factura emitida en los 6 meses previos). Las filas con línea roja a la izquierda son las que computan para el bono.';
 }
 
 function descargarPdf(completo) {

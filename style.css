@@ -379,7 +379,19 @@ footer.site-footer {
     letter-spacing: .04em; margin: 0 0 10px; padding-bottom: 6px;
     border-bottom: 2px solid var(--black);
   }
-  table.tabla-detalle { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  table.tabla-detalle { width: 100%; border-collapse: collapse; font-size: 7.8pt; table-layout: fixed; }
+  table.tabla-detalle .col-num { width: 4%; }
+  table.tabla-detalle th:nth-child(2) { width: 22%; }
+  table.tabla-detalle th:nth-child(3) { width: 12%; }
+  table.tabla-detalle th:nth-child(4) { width: 11%; }
+  table.tabla-detalle th:nth-child(5) { width: 9%; }
+  table.tabla-detalle th:nth-child(6) { width: 12%; }
+  table.tabla-detalle .col-obs { width: 30%; }
+  table.tabla-detalle td { word-wrap: break-word; overflow-wrap: break-word; }
+  table.tabla-detalle .col-obs { font-size: 7.2pt; color: #444; }
+  table.tabla-detalle .cal-si { color: var(--red); font-weight: 800; }
+  table.tabla-detalle .cal-no { color: #777; font-weight: 700; }
+  table.tabla-detalle .cal-pend { color: #999; font-style: italic; }
   table.tabla-detalle thead { display: table-header-group; }
   table.tabla-detalle th {
     text-align: left; text-transform: uppercase; letter-spacing: .06em;

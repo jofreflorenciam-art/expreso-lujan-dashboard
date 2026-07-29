@@ -187,7 +187,7 @@
     <div class="panel">
       <div class="panel-head">
         <h2 class="panel-title">Comisiones</h2>
-        <span class="panel-hint">bono único · 10% sobre clientes nuevos propios</span>
+        <span class="panel-hint" id="comisiones-hint">bono único · la base se resetea si un mes no llega</span>
       </div>
       <table class="comisiones">
         <thead>
@@ -204,12 +204,13 @@
     <table class="tabla-detalle">
       <thead>
         <tr>
-          <th>#</th>
+          <th class="col-num">#</th>
           <th>Cliente / Oportunidad</th>
           <th>Vendedor</th>
           <th>Etapa</th>
-          <th>Cliente nuevo</th>
+          <th>¿Califica?</th>
           <th class="num">Facturación</th>
+          <th>Observación</th>
         </tr>
       </thead>
       <tbody id="detalle-tbody"></tbody>
