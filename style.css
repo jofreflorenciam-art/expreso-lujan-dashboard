@@ -487,3 +487,54 @@ table.tabla-comparativa tbody tr:hover { background: var(--cream); }
   table.tabla-comparativa th { font-size: 7pt; padding: 5px 4px; }
   table.tabla-comparativa td { padding: 6px 4px; }
 }
+
+/* ============================================================
+   AJUSTES PARA CELULAR
+   ============================================================ */
+
+/* Tablas anchas: se deslizan de costado en vez de desbordar la pantalla */
+.tabla-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tabla-scroll table { min-width: 560px; }
+.tabla-scroll::-webkit-scrollbar { height: 6px; }
+.tabla-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+
+@media (max-width: 560px) {
+  .wrap { padding: 0 14px; }
+
+  /* Encabezado: logo más chico y botones a lo ancho */
+  .logo-img { height: 32px; }
+  .header-title { font-size: 12px; margin-left: 8px; padding-left: 8px; }
+  .header-inner { padding: 14px 14px 12px; gap: 12px; }
+  nav.nav-tabs { gap: 4px; padding-bottom: 4px; }
+  .nav-tab { padding: 9px 12px; font-size: 11.5px; }
+  .pdf-actions { width: 100%; }
+  .btn-pdf { flex: 1; padding: 11px 8px; font-size: 11px; }
+
+  /* Selector de mes bien visible y cómodo de tocar */
+  #barra-mes { flex-wrap: wrap; padding: 12px 0 10px; margin-bottom: 18px; }
+  #mes-selector { flex: 1; min-width: 130px; padding: 10px 12px; font-size: 15px; }
+  .mes-hint { width: 100%; }
+
+  /* Títulos y números */
+  .view-title { font-size: 21px; }
+  .view-subtitle { font-size: 12.5px; }
+  .kpi-value { font-size: 26px; }
+  .panel { padding: 16px 14px; }
+  .panel-head { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .panel-hint { font-size: 10.5px; }
+
+  /* Barras: la etiqueta ocupa su propia línea para no quedar cortada */
+  .simple-bar-row { grid-template-columns: 1fr 72px; grid-template-areas: "label label" "track value"; gap: 4px 8px; margin-bottom: 14px; }
+  .simple-bar-label { grid-area: label; white-space: normal; font-size: 12px; font-weight: 600; }
+  .simple-bar-track { grid-area: track; }
+  .simple-bar-value { grid-area: value; }
+
+  .arrastre-row { grid-template-columns: 105px 1fr 28px; gap: 8px; }
+  .arrastre-etapa { font-size: 11.5px; }
+  .arrastre-total .valor { font-size: 34px; }
+
+  .pill { padding: 8px 14px; font-size: 12px; }
+  .tag-tab { padding: 6px 11px; font-size: 11px; }
+
+  .embudo-pie, .panel-nota { font-size: 10.5px; }
+}
