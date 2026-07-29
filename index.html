@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reporte de Ventas · Expreso Luján</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 
@@ -43,17 +43,18 @@
 
 <main class="wrap">
 
+  <!-- Selector global: gobierna TODAS las secciones -->
+  <div class="mes-selector-row" id="barra-mes">
+    <label for="mes-selector">Mes</label>
+    <select id="mes-selector"></select>
+    <span class="mes-hint">filtra todo el reporte</span>
+  </div>
+
   <!-- VENTAS GENERAL -->
   <section id="view-ventas" class="view active">
     <div class="view-head">
       <h1 class="view-title">Ventas <span class="accent">General</span></h1>
-      <p class="view-subtitle">Todo lo que ves en esta pantalla corresponde al mes seleccionado.</p>
-    </div>
-
-    <div class="mes-selector-row">
-      <label for="mes-selector">Mes</label>
-      <select id="mes-selector"></select>
-      <span class="mes-hint">filtra toda la vista</span>
+      <p class="view-subtitle">Oportunidades creadas en el mes seleccionado y facturación imputada a ese mes.</p>
     </div>
 
     <div class="kpi-row">
@@ -128,19 +129,45 @@
   <section id="view-comercial" class="view">
     <div class="view-head">
       <h1 class="view-title">Por <span class="accent">Comercial</span></h1>
-      <p class="view-subtitle">Datos acumulados desde el lanzamiento del programa (01/06/2026) hasta hoy.</p>
+      <p class="view-subtitle" id="comercial-subtitulo">Desempeño de cada comercial en el mes seleccionado.</p>
     </div>
 
     <div id="comercial-selector" class="pill-row"></div>
 
-    <div class="panel" id="comercial-chart-wrap">
-      <div class="panel-head">
-        <h2 class="panel-title">Participación en la facturación</h2>
-        <span class="panel-hint">facturación de clientes nuevos por comercial</span>
+    <div id="comercial-chart-wrap">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Participación en la facturación</h2>
+          <span class="panel-hint" id="donut-hint">clientes nuevos facturados en el mes</span>
+        </div>
+        <div class="donut-layout">
+          <div id="donut-comerciales"></div>
+          <div id="donut-legend" class="donut-legend"></div>
+        </div>
       </div>
-      <div class="donut-layout">
-        <div id="donut-comerciales"></div>
-        <div id="donut-legend" class="donut-legend"></div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Comparativa del mes</h2>
+          <span class="panel-hint">oportunidades creadas en el mes · facturación del mes</span>
+        </div>
+        <table class="tabla-comparativa">
+          <thead>
+            <tr>
+              <th>Comercial</th>
+              <th class="num">Creadas</th>
+              <th class="num">Cotizadas</th>
+              <th class="num">Ganadas</th>
+              <th class="num">Perdidas</th>
+              <th class="num">Abiertas</th>
+              <th class="num">Cierre</th>
+              <th class="num">Facturación</th>
+            </tr>
+          </thead>
+          <tbody id="comparativa-tbody"></tbody>
+          <tfoot id="comparativa-tfoot"></tfoot>
+        </table>
+        <div class="panel-nota"><strong>Nota:</strong> Creadas, cotizadas, ganadas y perdidas corresponden a oportunidades nacidas en el mes seleccionado. La facturación es la imputada a ese mes por fecha de factura, y puede provenir de oportunidades de meses anteriores.</div>
       </div>
     </div>
 
@@ -162,12 +189,21 @@
       </div>
     </div>
 
-    <div class="panel" id="panel-embudo-comercial">
-      <div class="panel-head">
-        <h2 class="panel-title">Embudo del comercial</h2>
-        <span class="panel-hint">todas sus oportunidades</span>
+    <div class="panel-row" id="panel-embudo-comercial">
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Embudo del mes</h2>
+          <span class="panel-hint">sus oportunidades creadas en el mes</span>
+        </div>
+        <div id="embudo-comercial"></div>
       </div>
-      <div id="embudo-comercial"></div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Vienen de meses anteriores</h2>
+          <span class="panel-hint">suyas, creadas antes y sin cerrar</span>
+        </div>
+        <div id="arrastre-comercial"></div>
+      </div>
     </div>
   </section>
 
@@ -233,6 +269,6 @@
 
 <footer class="site-footer">Expreso Luján de Cuyo S.A. · Dashboard interno de ventas</footer>
 
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

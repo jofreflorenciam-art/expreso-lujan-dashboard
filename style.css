@@ -448,3 +448,42 @@ footer.site-footer {
   font-size: 10px;
   color: var(--black);
 }
+
+/* ---------- Barra global de mes ---------- */
+#barra-mes {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--white);
+  padding: 14px 0 12px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 24px;
+}
+
+/* ---------- Tabla comparativa por comercial ---------- */
+table.tabla-comparativa { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tabla-comparativa th {
+  text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--gray); font-weight: 800; padding: 8px 8px;
+  border-bottom: 2px solid var(--black); white-space: nowrap;
+}
+table.tabla-comparativa th.num, table.tabla-comparativa td.num { text-align: right; }
+table.tabla-comparativa td { padding: 11px 8px; border-bottom: 1px solid var(--line); }
+table.tabla-comparativa .td-nombre { font-weight: 800; }
+table.tabla-comparativa .td-ganadas { color: var(--red); font-weight: 800; }
+table.tabla-comparativa .td-facturacion { font-weight: 800; }
+table.tabla-comparativa tfoot td {
+  font-weight: 900; border-top: 2px solid var(--black); border-bottom: none;
+  background: var(--cream); padding: 12px 8px;
+}
+table.tabla-comparativa tbody tr:hover { background: var(--cream); }
+
+@media (max-width: 760px) {
+  table.tabla-comparativa { font-size: 11px; }
+  table.tabla-comparativa th, table.tabla-comparativa td { padding: 7px 4px; }
+}
+
+@media print {
+  #barra-mes { display: none !important; }
+  table.tabla-comparativa { font-size: 8.5pt; }
+  table.tabla-comparativa th { font-size: 7pt; padding: 5px 4px; }
+  table.tabla-comparativa td { padding: 6px 4px; }
+}

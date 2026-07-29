@@ -302,9 +302,23 @@ function renderVentasGeneral() {
   selector.innerHTML = meses.map(m => `<option value="${m}">${m}</option>`).join('');
   MES_ACTUAL = meses.includes(mesPrevio) ? mesPrevio : meses[meses.length - 1];
   selector.value = MES_ACTUAL;
-  selector.onchange = () => { MES_ACTUAL = selector.value; pintarVentasGeneralDelMes(filas, meses); };
+  selector.onchange = () => { MES_ACTUAL = selector.value; repintarTodo(); };
 
   pintarVentasGeneralDelMes(filas, meses);
+}
+
+/** El selector de mes es global: al cambiarlo se repintan todas las secciones,
+ *  para que nunca queden mostrando períodos distintos entre sí. */
+function repintarTodo() {
+  const filas = DATA.filas;
+  const meses = [...new Set(filas.flatMap(f => [f.mesCreado, f.mesFactura]).filter(m => m && m !== 'Sin fecha'))].sort();
+  intentarRenderizar('Ventas General', () => pintarVentasGeneralDelMes(filas, meses));
+  intentarRenderizar('Por Comercial', () => {
+    const activa = document.querySelector('#comercial-selector .pill.active');
+    const nombres = [...new Set(filas.map(f => f.vendedor).filter(Boolean))];
+    pintarComercial(activa ? activa.textContent : 'Todos', filas, nombres);
+  });
+  intentarRenderizar('Progreso al Bono', renderProgresoBono);
 }
 
 function pintarVentasGeneralDelMes(filas, meses) {
@@ -406,59 +420,134 @@ function renderPorComercial() {
 }
 
 function pintarComercial(nombre, filas, nombres) {
+  const mes = MES_ACTUAL;
   const esTodos = nombre === 'Todos';
   document.getElementById('comercial-chart-wrap').style.display = esTodos ? 'block' : 'none';
   document.getElementById('comercial-kpis').style.display = esTodos ? 'none' : 'grid';
-  document.getElementById('panel-embudo-comercial').style.display = esTodos ? 'none' : 'block';
+  document.getElementById('panel-embudo-comercial').style.display = esTodos ? 'none' : 'grid';
 
-  const factDe = (v) => filas.filter(f => f.vendedor === v && f.califica === 'SI').reduce((a, f) => a + f.ingresos, 0);
+  document.getElementById('comercial-subtitulo').textContent =
+    `Desempeño de cada comercial en ${mes}.`;
+  const dh = document.getElementById('donut-hint');
+  if (dh) dh.textContent = `clientes nuevos facturados en ${mes}`;
+
+  // Métricas del mes para un vendedor (o para todos si se pasa null)
+  const metricasDe = (v) => {
+    const cohorte = filas.filter(f => f.mesCreado === mes && (v === null || f.vendedor === v));
+    const facturado = filas.filter(f => f.califica === 'SI' && f.mesFactura === mes && (v === null || f.vendedor === v));
+    const cont = (etapa) => cohorte.filter(f => f.etapa === etapa).length;
+    const creadas = cohorte.length;
+    const nuevas = cont('NUEVO');
+    const ganadas = cont('GANADA');
+    const perdidas = cont('PERDIDA');
+    return {
+      creadas,
+      cotizadas: creadas - nuevas,
+      ganadas,
+      perdidas,
+      abiertas: nuevas + cont('COTIZACION ENVIADA') + cont('NEGOCIACION'),
+      cierre: (ganadas + perdidas) > 0 ? Math.round((ganadas / (ganadas + perdidas)) * 100) : null,
+      facturacion: facturado.reduce((a, f) => a + f.ingresos, 0),
+    };
+  };
 
   if (esTodos) {
-    const entries = nombres.map(v => ({ label: v, value: factDe(v) })).sort((a, b) => b.value - a.value);
-    renderDonut('donut-comerciales', 'donut-legend', entries);
+    // Dona de participación en la facturación DEL MES
+    const entries = nombres
+      .map(v => ({ label: v, value: metricasDe(v).facturacion }))
+      .filter(e => e.value > 0)
+      .sort((a, b) => b.value - a.value);
+    if (entries.length) {
+      renderDonut('donut-comerciales', 'donut-legend', entries);
+    } else {
+      document.getElementById('donut-comerciales').innerHTML =
+        '<p class="empty-msg">No hay facturación de clientes nuevos en este mes.</p>';
+      document.getElementById('donut-legend').innerHTML = '';
+    }
+
+    // Tabla comparativa del mes
+    const tbody = document.getElementById('comparativa-tbody');
+    tbody.innerHTML = '';
+    nombres
+      .map(v => ({ nombre: v, m: metricasDe(v) }))
+      .sort((a, b) => b.m.facturacion - a.m.facturacion)
+      .forEach(({ nombre: v, m }) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="td-nombre">${v}</td>
+          <td class="num">${m.creadas}</td>
+          <td class="num">${m.cotizadas}</td>
+          <td class="num td-ganadas">${m.ganadas}</td>
+          <td class="num">${m.perdidas}</td>
+          <td class="num">${m.abiertas}</td>
+          <td class="num">${m.cierre === null ? '—' : m.cierre + '%'}</td>
+          <td class="num td-facturacion">${fmt(m.facturacion)}</td>`;
+        tbody.appendChild(tr);
+      });
+
+    const t = metricasDe(null);
+    document.getElementById('comparativa-tfoot').innerHTML = `
+      <tr>
+        <td class="td-nombre">TOTAL EQUIPO</td>
+        <td class="num">${t.creadas}</td>
+        <td class="num">${t.cotizadas}</td>
+        <td class="num">${t.ganadas}</td>
+        <td class="num">${t.perdidas}</td>
+        <td class="num">${t.abiertas}</td>
+        <td class="num">${t.cierre === null ? '—' : t.cierre + '%'}</td>
+        <td class="num">${fmt(t.facturacion)}</td>
+      </tr>`;
     return;
   }
 
-  const filasPersona = filas.filter(f => f.vendedor === nombre);
+  // --- Vista individual ---
+  const m = metricasDe(nombre);
+  const cohorte = filas.filter(f => f.mesCreado === mes && f.vendedor === nombre);
   const embudo = { NUEVO: 0, "COTIZACION ENVIADA": 0, NEGOCIACION: 0, GANADA: 0, PERDIDA: 0 };
-  let facturacion = 0, clientesNuevos = 0;
   const ganadasNoNuevas = [];
-  filasPersona.forEach(f => {
+  cohorte.forEach(f => {
     if (embudo.hasOwnProperty(f.etapa)) embudo[f.etapa]++;
-    if (f.califica === 'SI') { facturacion += f.ingresos; clientesNuevos++; }
-    else if (f.etapa === 'GANADA') ganadasNoNuevas.push({ oportunidad: f.oportunidad, cliente: f.cliente, obs: f.obs });
+    if (f.etapa === 'GANADA' && f.califica !== 'SI') {
+      ganadasNoNuevas.push({ oportunidad: f.oportunidad, cliente: f.cliente, obs: f.obs, califica: f.califica });
+    }
   });
+  const clientesNuevos = cohorte.filter(f => f.etapa === 'GANADA' && f.califica === 'SI').length;
 
-  document.getElementById('com-kpi-facturacion').textContent = fmt(facturacion);
+  document.getElementById('com-kpi-facturacion').textContent = fmt(m.facturacion);
   document.getElementById('com-kpi-clientes').textContent = clientesNuevos;
-  document.getElementById('com-kpi-ganadas').textContent = embudo.GANADA;
+  document.getElementById('com-kpi-ganadas').textContent = m.ganadas;
 
-  const totalEquipo = nombres.reduce((a, v) => a + factDe(v), 0);
-  const share = totalEquipo > 0 ? Math.round((facturacion / totalEquipo) * 100) : 0;
+  const totalEquipo = metricasDe(null).facturacion;
+  const share = totalEquipo > 0 ? Math.round((m.facturacion / totalEquipo) * 100) : 0;
   document.getElementById('com-kpi-facturacion-foot').innerHTML =
-    `<span class="kpi-delta kpi-delta--flat">${share}%</span><span class="kpi-sub">del total del equipo</span>`;
+    `<span class="kpi-delta kpi-delta--flat">${share}%</span><span class="kpi-sub">del equipo en ${mes}</span>`;
 
   const notaEl = document.getElementById('com-kpi-clientes-note');
   notaEl.innerHTML = '';
   if (ganadasNoNuevas.length > 0) {
     const intro = document.createElement('div');
-    intro.textContent = `${ganadasNoNuevas.length} ganada(s) no cuentan para el bono:`;
+    intro.textContent = `${ganadasNoNuevas.length} ganada(s) del mes no cuentan para el bono:`;
     notaEl.appendChild(intro);
     const lista = document.createElement('ul');
     lista.className = 'nota-lista';
     ganadasNoNuevas.forEach(g => {
       const li = document.createElement('li');
       const nombreMostrar = g.cliente || g.oportunidad;
-      const motivo = g.obs ? g.obs : 'sin motivo cargado en OBS';
+      const motivo = g.obs
+        ? g.obs
+        : (g.califica === 'NO' ? 'sin motivo cargado en OBS' : 'todavía sin verificar contra facturación');
       li.innerHTML = `<span class="nl-nombre">${nombreMostrar}</span><br><span class="nl-motivo">${motivo}</span>`;
       lista.appendChild(li);
     });
     notaEl.appendChild(lista);
   } else {
-    notaEl.textContent = 'Todas sus ganadas son de clientes nuevos.';
+    notaEl.textContent = m.ganadas > 0
+      ? 'Todas sus ganadas del mes son de clientes nuevos.'
+      : 'No registró oportunidades ganadas este mes.';
   }
 
   renderFunnel('embudo-comercial', embudo);
+  renderArrastre('arrastre-comercial', filas.filter(f => f.vendedor === nombre), mes);
 }
 
 /* ---------------- PROGRESO AL BONO ---------------- */
