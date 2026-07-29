@@ -17,61 +17,133 @@ async function cargarDatos() {
     DATA = await res.json();
     statusEl.textContent = 'Actualizado: ' + new Date(DATA.generadoEl).toLocaleString('es-AR');
     statusEl.classList.remove('status-error');
-    renderVentasGeneral();
-    renderPorComercial();
-    renderProgresoBono();
   } catch (err) {
     console.error(err);
     statusEl.textContent = 'No se pudo cargar la información. Reintentando...';
     statusEl.classList.add('status-error');
     setTimeout(cargarDatos, 8000);
+    return;
   }
+  // Cada sección se renderiza de forma independiente: si una falla (por ejemplo,
+  // un bloqueador de anuncios que impide cargar Chart.js), las demás igual se muestran.
+  intentarRenderizar('Ventas General', renderVentasGeneral);
+  intentarRenderizar('Por Comercial', renderPorComercial);
+  intentarRenderizar('Progreso al Bono', renderProgresoBono);
+}
+
+function intentarRenderizar(nombre, fn) {
+  try {
+    fn();
+  } catch (err) {
+    console.error('Error renderizando ' + nombre + ':', err);
+  }
+}
+
+function chartDisponible() {
+  return typeof Chart !== 'undefined';
+}
+
+function mostrarAvisoSinGrafico(canvasId, mensaje) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const aviso = document.createElement('p');
+  aviso.className = 'empty-msg';
+  aviso.textContent = mensaje;
+  canvas.replaceWith(aviso);
 }
 
 function destroyChart(key) {
   if (charts[key]) { charts[key].destroy(); delete charts[key]; }
 }
 
+/** Dibuja un embudo real (trapecios apilados) para las etapas de avance,
+ *  y muestra "Perdida" aparte como salida del embudo (no como escalón). */
+function renderFunnel(containerId, embudo) {
+  const ETAPAS_FUNNEL = ["NUEVO", "COTIZACION ENVIADA", "NEGOCIACION", "GANADA"];
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = '';
+
+  const outer = document.createElement('div');
+  outer.className = 'embudo-svg-wrap';
+
+  const valores = ETAPAS_FUNNEL.map(e => embudo[e] || 0);
+  const max = Math.max(...valores, 1);
+  const W = 320, H = 210, STAGE_H = H / ETAPAS_FUNNEL.length, MIN_W = 40;
+
+  const widthFor = (v) => Math.max(MIN_W, (v / max) * W);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H + 90}" width="100%" style="max-width:360px" xmlns="http://www.w3.org/2000/svg">`;
+  const colores = ['#1C1B1A', '#4A4744', '#8A8580', '#CA151E'];
+  ETAPAS_FUNNEL.forEach((etapa, i) => {
+    const wTop = widthFor(valores[i]);
+    const wBottom = i < ETAPAS_FUNNEL.length - 1 ? widthFor(valores[i + 1]) : wTop * 0.9;
+    const y = i * STAGE_H;
+    const xTopL = (W - wTop) / 2, xTopR = (W + wTop) / 2;
+    const xBotL = (W - wBottom) / 2, xBotR = (W + wBottom) / 2;
+    svg += `<polygon points="${xTopL},${y} ${xTopR},${y} ${xBotR},${y + STAGE_H - 4} ${xBotL},${y + STAGE_H - 4}" fill="${colores[i]}" />`;
+    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 - 6}" text-anchor="middle" fill="#fff" font-family="Raleway" font-weight="800" font-size="15">${valores[i]}</text>`;
+    svg += `<text x="${W / 2}" y="${y + STAGE_H / 2 + 12}" text-anchor="middle" fill="#fff" font-family="Raleway" font-weight="500" font-size="10.5" opacity="0.85">${ETAPAS_LABEL[etapa]}</text>`;
+  });
+  svg += `</svg>`;
+
+  const svgHolder = document.createElement('div');
+  svgHolder.style.flex = '1';
+  svgHolder.innerHTML = svg;
+  outer.appendChild(svgHolder);
+
+  const perdidas = document.createElement('div');
+  perdidas.className = 'embudo-perdidas';
+  perdidas.innerHTML = `<div class="valor">${embudo.PERDIDA || 0}</div><div class="label">Perdidas</div>`;
+  outer.appendChild(perdidas);
+
+  wrap.appendChild(outer);
+}
+
+function actualizarKpiFacturacionMes(vg, mes) {
+  document.getElementById('kpi-facturacion-label').textContent = `Facturación clientes nuevos — ${mes}`;
+  document.getElementById('kpi-facturacion-total').textContent = fmt(vg.facturacionPorMes[mes] || 0);
+}
+
 /* ---------------- VENTAS GENERAL ---------------- */
 function renderVentasGeneral() {
   const vg = DATA.ventasGeneral;
 
-  document.getElementById('kpi-facturacion-total').textContent = fmt(vg.facturacionTotal);
   document.getElementById('kpi-ganadas').textContent = vg.embudo.GANADA;
   document.getElementById('kpi-pendientes').textContent = vg.gananadasPendientesDeConfirmar;
 
-  // Embudo
-  const embudoWrap = document.getElementById('embudo-general');
-  embudoWrap.innerHTML = '';
-  const maxEmbudo = Math.max(...ETAPAS_ORDEN.map(e => vg.embudo[e] || 0), 1);
-  ETAPAS_ORDEN.forEach(etapa => {
-    const val = vg.embudo[etapa] || 0;
-    const row = document.createElement('div');
-    row.className = 'embudo-row etapa-' + etapa.replace(/\s+/g, '-').toLowerCase();
-    row.innerHTML = `
-      <span class="embudo-label">${ETAPAS_LABEL[etapa]}</span>
-      <div class="embudo-bar-track"><div class="embudo-bar-fill" style="width:${(val / maxEmbudo) * 100}%"></div></div>
-      <span class="embudo-value">${val}</span>`;
-    embudoWrap.appendChild(row);
-  });
+  // Selector de mes: reemplaza el KPI acumulado (poco útil) por facturación del mes elegido
+  const meses = Object.keys(vg.facturacionPorMes).sort();
+  const selector = document.getElementById('mes-selector');
+  const mesPrevio = selector.value;
+  selector.innerHTML = meses.map(m => `<option value="${m}">${m}</option>`).join('');
+  const mesElegido = meses.includes(mesPrevio) ? mesPrevio : meses[meses.length - 1];
+  selector.value = mesElegido;
+  selector.onchange = () => actualizarKpiFacturacionMes(vg, selector.value);
+  actualizarKpiFacturacionMes(vg, mesElegido);
+
+  // Embudo (forma real de embudo)
+  renderFunnel('embudo-general', vg.embudo);
 
   // Facturación por mes
-  const meses = Object.keys(vg.facturacionPorMes).sort();
-  destroyChart('facturacionMes');
-  charts.facturacionMes = new Chart(document.getElementById('chart-facturacion-mes'), {
-    type: 'bar',
-    data: {
-      labels: meses,
-      datasets: [{
-        label: 'Facturación clientes nuevos',
-        data: meses.map(m => vg.facturacionPorMes[m]),
-        backgroundColor: '#CA151E',
-        borderRadius: 4,
-        maxBarThickness: 56,
-      }]
-    },
-    options: chartBaseOptions((v) => fmt(v))
-  });
+  if (chartDisponible()) {
+    destroyChart('facturacionMes');
+    charts.facturacionMes = new Chart(document.getElementById('chart-facturacion-mes'), {
+      type: 'bar',
+      data: {
+        labels: meses,
+        datasets: [{
+          label: 'Facturación clientes nuevos',
+          data: meses.map(m => vg.facturacionPorMes[m]),
+          backgroundColor: '#CA151E',
+          borderRadius: 4,
+          maxBarThickness: 56,
+        }]
+      },
+      options: chartBaseOptions((v) => fmt(v))
+    });
+  } else {
+    mostrarAvisoSinGrafico('chart-facturacion-mes', 'No se pudo cargar el gráfico (puede estar bloqueado por una extensión del navegador). Datos: ' + meses.map(m => `${m}: ${fmt(vg.facturacionPorMes[m])}`).join(' · '));
+  }
 
   // Etiquetas por categoría
   renderEtiquetas(vg.etiquetasPorCategoria, 'Rubro');
@@ -127,24 +199,31 @@ function renderPorComercial() {
 function pintarComercial(nombre) {
   const cont = document.getElementById('comercial-detalle');
   if (nombre === 'Todos') {
-    destroyChart('comparativa');
     const canvasHolder = document.getElementById('comercial-chart-wrap');
     canvasHolder.style.display = 'block';
     document.getElementById('comercial-kpis').style.display = 'none';
-    charts.comparativa = new Chart(document.getElementById('chart-comparativa'), {
-      type: 'bar',
-      data: {
-        labels: DATA.porComercial.map(p => p.vendedor),
-        datasets: [{
-          label: 'Facturación clientes nuevos',
-          data: DATA.porComercial.map(p => p.facturacionClientesNuevos),
-          backgroundColor: ['#CA151E', '#1C1B1A', '#8A8580'],
-          borderRadius: 4,
-          maxBarThickness: 70,
-        }]
-      },
-      options: chartBaseOptions((v) => fmt(v))
-    });
+    if (chartDisponible()) {
+      destroyChart('comparativa');
+      const canvasEl = document.getElementById('chart-comparativa');
+      if (canvasEl) {
+        charts.comparativa = new Chart(canvasEl, {
+          type: 'bar',
+          data: {
+            labels: DATA.porComercial.map(p => p.vendedor),
+            datasets: [{
+              label: 'Facturación clientes nuevos',
+              data: DATA.porComercial.map(p => p.facturacionClientesNuevos),
+              backgroundColor: ['#CA151E', '#1C1B1A', '#8A8580'],
+              borderRadius: 4,
+              maxBarThickness: 70,
+            }]
+          },
+          options: chartBaseOptions((v) => fmt(v))
+        });
+      }
+    } else {
+      mostrarAvisoSinGrafico('chart-comparativa', 'No se pudo cargar el gráfico. Datos: ' + DATA.porComercial.map(p => `${p.vendedor}: ${fmt(p.facturacionClientesNuevos)}`).join(' · '));
+    }
     return;
   }
   document.getElementById('comercial-chart-wrap').style.display = 'none';
@@ -154,19 +233,7 @@ function pintarComercial(nombre) {
   document.getElementById('com-kpi-clientes').textContent = persona.clientesNuevos;
   document.getElementById('com-kpi-ganadas').textContent = persona.embudo.GANADA;
 
-  const embudoWrap = document.getElementById('embudo-comercial');
-  embudoWrap.innerHTML = '';
-  const maxEmbudo = Math.max(...ETAPAS_ORDEN.map(e => persona.embudo[e] || 0), 1);
-  ETAPAS_ORDEN.forEach(etapa => {
-    const val = persona.embudo[etapa] || 0;
-    const row = document.createElement('div');
-    row.className = 'embudo-row etapa-' + etapa.replace(/\s+/g, '-').toLowerCase();
-    row.innerHTML = `
-      <span class="embudo-label">${ETAPAS_LABEL[etapa]}</span>
-      <div class="embudo-bar-track"><div class="embudo-bar-fill" style="width:${(val / maxEmbudo) * 100}%"></div></div>
-      <span class="embudo-value">${val}</span>`;
-    embudoWrap.appendChild(row);
-  });
+  renderFunnel('embudo-comercial', persona.embudo);
 }
 
 /* ---------------- PROGRESO AL BONO ---------------- */

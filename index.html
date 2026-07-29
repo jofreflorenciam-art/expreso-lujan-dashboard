@@ -31,13 +31,18 @@
     <h1 class="view-title">Ventas General</h1>
     <p class="view-subtitle">Facturación de clientes nuevos, embudo comercial y desglose por etiquetas.</p>
 
+    <div class="mes-selector-row">
+      <label for="mes-selector">Facturación del mes:</label>
+      <select id="mes-selector"></select>
+    </div>
+
     <div class="kpi-row">
       <div class="kpi-card">
-        <div class="kpi-label">Facturación clientes nuevos (acum.)</div>
+        <div class="kpi-label" id="kpi-facturacion-label">Facturación clientes nuevos</div>
         <div class="kpi-value" id="kpi-facturacion-total">—</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Oportunidades ganadas</div>
+        <div class="kpi-label">Oportunidades ganadas (total)</div>
         <div class="kpi-value" id="kpi-ganadas">—</div>
       </div>
       <div class="kpi-card alert">

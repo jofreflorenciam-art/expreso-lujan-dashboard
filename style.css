@@ -26,7 +26,7 @@ body {
 
 /* ---------- HEADER ---------- */
 header.site-header {
-  background: var(--black);
+  background: var(--white);
   border-bottom: 4px solid var(--red);
 }
 .header-inner {
@@ -39,13 +39,13 @@ header.site-header {
 }
 .logo-img { height: 42px; display: block; }
 .header-title {
-  color: var(--white);
+  color: var(--black);
   font-weight: 900;
   font-size: 15px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-left: 12px;
-  border-left: 1px solid rgba(255,255,255,0.25);
+  border-left: 1px solid var(--line);
   padding-left: 12px;
 }
 .header-left { display: flex; align-items: center; }
@@ -53,9 +53,9 @@ header.site-header {
 nav.nav-tabs { display: flex; gap: 6px; }
 .nav-tab {
   font-family: 'Raleway', sans-serif;
-  background: transparent;
-  color: rgba(255,255,255,0.65);
-  border: 1px solid rgba(255,255,255,0.25);
+  background: var(--white);
+  color: var(--gray-dark);
+  border: 1.5px solid var(--black);
   padding: 10px 16px;
   font-size: 13px;
   font-weight: 700;
@@ -65,7 +65,7 @@ nav.nav-tabs { display: flex; gap: 6px; }
   border-radius: 6px;
   transition: all .15s ease;
 }
-.nav-tab:hover { color: var(--white); border-color: rgba(255,255,255,0.5); }
+.nav-tab:hover { background: var(--cream); }
 .nav-tab.active { background: var(--red); color: var(--white); border-color: var(--red); }
 
 #status-carga {
@@ -73,6 +73,7 @@ nav.nav-tabs { display: flex; gap: 6px; }
   font-size: 11px;
   color: var(--gray);
   padding: 6px 24px 0;
+  background: var(--white);
 }
 #status-carga.status-error { color: var(--red); font-weight: 600; }
 
@@ -113,13 +114,35 @@ nav.nav-tabs { display: flex; gap: 6px; }
 .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 
 /* ---------- EMBUDO ---------- */
-.embudo-row { display: grid; grid-template-columns: 130px 1fr 36px; align-items: center; gap: 10px; margin-bottom: 10px; }
-.embudo-label { font-size: 12.5px; font-weight: 600; color: var(--gray-dark); }
-.embudo-bar-track { background: var(--cream); border-radius: 5px; height: 16px; overflow: hidden; }
-.embudo-bar-fill { background: var(--gray-dark); height: 100%; border-radius: 5px; transition: width .4s ease; }
-.embudo-row.etapa-ganada .embudo-bar-fill { background: var(--red); }
-.embudo-row.etapa-perdida .embudo-bar-fill { background: var(--gray); }
-.embudo-value { text-align: right; font-weight: 800; font-size: 13px; }
+/* (embudo ahora se dibuja como SVG, ver .embudo-svg-wrap más abajo) */
+
+/* ---------- EMBUDO (forma real de embudo, SVG) ---------- */
+.embudo-svg-wrap { display: flex; gap: 24px; align-items: center; }
+.embudo-perdidas {
+  flex-shrink: 0;
+  text-align: center;
+  padding: 14px 18px;
+  border: 1.5px dashed var(--gray);
+  border-radius: var(--radius);
+  color: var(--gray-dark);
+}
+.embudo-perdidas .valor { font-size: 26px; font-weight: 900; color: var(--gray); }
+.embudo-perdidas .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--gray); }
+
+/* ---------- SELECTOR DE MES ---------- */
+.mes-selector-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.mes-selector-row label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray); }
+#mes-selector {
+  font-family: 'Raleway', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 7px 12px;
+  border: 1.5px solid var(--black);
+  border-radius: 6px;
+  background: var(--white);
+  color: var(--black);
+  cursor: pointer;
+}
 
 /* ---------- CHART CONTAINERS ---------- */
 .chart-box { height: 240px; position: relative; }
