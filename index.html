@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Reporte de Ventas · Expreso Luján</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -58,8 +57,13 @@
       </div>
       <div class="panel">
         <div class="panel-title">Facturación por mes</div>
-        <div class="chart-box"><canvas id="chart-facturacion-mes"></canvas></div>
+        <div id="facturacion-mes-barras"></div>
       </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Top 10 Clientes del mes</div>
+      <div id="top-clientes"></div>
     </div>
 
     <div class="panel">
@@ -78,28 +82,29 @@
   <!-- POR COMERCIAL -->
   <section id="view-comercial" class="view">
     <h1 class="view-title">Por Comercial</h1>
-    <p class="view-subtitle">Facturación de clientes nuevos y embudo por vendedor.</p>
+    <p class="view-subtitle">Datos acumulados desde el lanzamiento del programa (01/06/2026) hasta hoy.</p>
 
     <div id="comercial-selector" class="pill-row"></div>
 
     <div id="comercial-kpis">
       <div class="kpi-card">
+        <div class="kpi-label">Oportunidades ganadas (total)</div>
+        <div class="kpi-value" id="com-kpi-ganadas">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">↳ De esas, clientes nuevos</div>
+        <div class="kpi-value" id="com-kpi-clientes">—</div>
+        <div class="kpi-note" id="com-kpi-clientes-note"></div>
+      </div>
+      <div class="kpi-card">
         <div class="kpi-label">Facturación clientes nuevos</div>
         <div class="kpi-value" id="com-kpi-facturacion">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Clientes nuevos generados</div>
-        <div class="kpi-value" id="com-kpi-clientes">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Oportunidades ganadas</div>
-        <div class="kpi-value" id="com-kpi-ganadas">—</div>
       </div>
     </div>
 
     <div class="panel" id="comercial-chart-wrap">
       <div class="panel-title">Facturación por comercial</div>
-      <div class="chart-box"><canvas id="chart-comparativa"></canvas></div>
+      <div id="comparativa-barras"></div>
     </div>
 
     <div class="panel">

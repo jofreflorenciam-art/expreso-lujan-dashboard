@@ -7,7 +7,6 @@ const ETAPAS_ORDEN = ["NUEVO", "COTIZACION ENVIADA", "NEGOCIACION", "GANADA", "P
 const ETAPAS_LABEL = { NUEVO: "Nuevo", "COTIZACION ENVIADA": "Cotización enviada", NEGOCIACION: "Negociación", GANADA: "Ganada", PERDIDA: "Perdida" };
 
 let DATA = null;
-let charts = {};
 
 async function cargarDatos() {
   const statusEl = document.getElementById('status-carga');
@@ -24,8 +23,6 @@ async function cargarDatos() {
     setTimeout(cargarDatos, 8000);
     return;
   }
-  // Cada sección se renderiza de forma independiente: si una falla (por ejemplo,
-  // un bloqueador de anuncios que impide cargar Chart.js), las demás igual se muestran.
   intentarRenderizar('Ventas General', renderVentasGeneral);
   intentarRenderizar('Por Comercial', renderPorComercial);
   intentarRenderizar('Progreso al Bono', renderProgresoBono);
@@ -39,21 +36,25 @@ function intentarRenderizar(nombre, fn) {
   }
 }
 
-function chartDisponible() {
-  return typeof Chart !== 'undefined';
-}
-
-function mostrarAvisoSinGrafico(canvasId, mensaje) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const aviso = document.createElement('p');
-  aviso.className = 'empty-msg';
-  aviso.textContent = mensaje;
-  canvas.replaceWith(aviso);
-}
-
-function destroyChart(key) {
-  if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+/** Barra horizontal simple hecha con CSS/HTML (sin librerías externas, no depende de ningún CDN) */
+function renderBarras(containerId, entries, opciones) {
+  opciones = opciones || {};
+  const wrap = document.getElementById(containerId);
+  wrap.innerHTML = '';
+  if (!entries || entries.length === 0) {
+    wrap.innerHTML = `<p class="empty-msg">${opciones.vacioMsg || 'No hay datos para mostrar.'}</p>`;
+    return;
+  }
+  const max = Math.max(...entries.map(e => e.value), 1);
+  entries.forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'simple-bar-row';
+    row.innerHTML = `
+      <span class="simple-bar-label" title="${e.label}">${e.label}</span>
+      <div class="simple-bar-track"><div class="simple-bar-fill" style="width:${(e.value / max) * 100}%; background:${e.color || 'var(--red)'}"></div></div>
+      <span class="simple-bar-value">${opciones.formatValue ? opciones.formatValue(e.value) : e.value}</span>`;
+    wrap.appendChild(row);
+  });
 }
 
 /** Dibuja un embudo real (trapecios apilados) para las etapas de avance,
@@ -99,9 +100,17 @@ function renderFunnel(containerId, embudo) {
   wrap.appendChild(outer);
 }
 
-function actualizarKpiFacturacionMes(vg, mes) {
+function actualizarVistaMes(vg, mes) {
   document.getElementById('kpi-facturacion-label').textContent = `Facturación clientes nuevos — ${mes}`;
   document.getElementById('kpi-facturacion-total').textContent = fmt(vg.facturacionPorMes[mes] || 0);
+
+  // Top 10 clientes del mes elegido
+  const filasDelMes = (vg.detalleFacturacion || []).filter(f => f.mes === mes);
+  const top10 = filasDelMes
+    .sort((a, b) => b.facturacion - a.facturacion)
+    .slice(0, 10)
+    .map(f => ({ label: f.cliente || f.oportunidad, value: f.facturacion }));
+  renderBarras('top-clientes', top10, { formatValue: fmt, vacioMsg: 'No hay facturación de clientes nuevos cargada para este mes.' });
 }
 
 /* ---------------- VENTAS GENERAL ---------------- */
@@ -111,41 +120,20 @@ function renderVentasGeneral() {
   document.getElementById('kpi-ganadas').textContent = vg.embudo.GANADA;
   document.getElementById('kpi-pendientes').textContent = vg.gananadasPendientesDeConfirmar;
 
-  // Selector de mes: reemplaza el KPI acumulado (poco útil) por facturación del mes elegido
   const meses = Object.keys(vg.facturacionPorMes).sort();
   const selector = document.getElementById('mes-selector');
   const mesPrevio = selector.value;
   selector.innerHTML = meses.map(m => `<option value="${m}">${m}</option>`).join('');
   const mesElegido = meses.includes(mesPrevio) ? mesPrevio : meses[meses.length - 1];
   selector.value = mesElegido;
-  selector.onchange = () => actualizarKpiFacturacionMes(vg, selector.value);
-  actualizarKpiFacturacionMes(vg, mesElegido);
+  selector.onchange = () => actualizarVistaMes(vg, selector.value);
+  actualizarVistaMes(vg, mesElegido);
 
-  // Embudo (forma real de embudo)
   renderFunnel('embudo-general', vg.embudo);
 
-  // Facturación por mes
-  if (chartDisponible()) {
-    destroyChart('facturacionMes');
-    charts.facturacionMes = new Chart(document.getElementById('chart-facturacion-mes'), {
-      type: 'bar',
-      data: {
-        labels: meses,
-        datasets: [{
-          label: 'Facturación clientes nuevos',
-          data: meses.map(m => vg.facturacionPorMes[m]),
-          backgroundColor: '#CA151E',
-          borderRadius: 4,
-          maxBarThickness: 56,
-        }]
-      },
-      options: chartBaseOptions((v) => fmt(v))
-    });
-  } else {
-    mostrarAvisoSinGrafico('chart-facturacion-mes', 'No se pudo cargar el gráfico (puede estar bloqueado por una extensión del navegador). Datos: ' + meses.map(m => `${m}: ${fmt(vg.facturacionPorMes[m])}`).join(' · '));
-  }
+  const entradasMes = meses.map(m => ({ label: m, value: vg.facturacionPorMes[m] }));
+  renderBarras('facturacion-mes-barras', entradasMes, { formatValue: fmt });
 
-  // Etiquetas por categoría
   renderEtiquetas(vg.etiquetasPorCategoria, 'Rubro');
   document.querySelectorAll('.tag-tab').forEach(btn => {
     btn.onclick = () => {
@@ -157,24 +145,12 @@ function renderVentasGeneral() {
 }
 
 function renderEtiquetas(etiquetasPorCategoria, categoria) {
-  const wrap = document.getElementById('etiquetas-lista');
-  wrap.innerHTML = '';
   const datos = etiquetasPorCategoria[categoria] || {};
-  const entries = Object.entries(datos).sort((a, b) => b[1].facturacion - a[1].facturacion).slice(0, 8);
-  if (entries.length === 0) {
-    wrap.innerHTML = '<p class="empty-msg">Todavía no hay etiquetas cargadas en esta categoría.</p>';
-    return;
-  }
-  const max = Math.max(...entries.map(e => e[1].facturacion), 1);
-  entries.forEach(([tag, info]) => {
-    const row = document.createElement('div');
-    row.className = 'tag-row';
-    row.innerHTML = `
-      <span class="tag-name">${tag}</span>
-      <div class="tag-bar-track"><div class="tag-bar-fill" style="width:${(info.facturacion / max) * 100}%"></div></div>
-      <span class="tag-value">${fmt(info.facturacion)}</span>`;
-    wrap.appendChild(row);
-  });
+  const entries = Object.entries(datos)
+    .sort((a, b) => b[1].facturacion - a[1].facturacion)
+    .slice(0, 8)
+    .map(([tag, info]) => ({ label: tag, value: info.facturacion }));
+  renderBarras('etiquetas-lista', entries, { formatValue: fmt, vacioMsg: 'Todavía no hay etiquetas cargadas en esta categoría.' });
 }
 
 /* ---------------- POR COMERCIAL ---------------- */
@@ -197,33 +173,11 @@ function renderPorComercial() {
 }
 
 function pintarComercial(nombre) {
-  const cont = document.getElementById('comercial-detalle');
   if (nombre === 'Todos') {
-    const canvasHolder = document.getElementById('comercial-chart-wrap');
-    canvasHolder.style.display = 'block';
+    document.getElementById('comercial-chart-wrap').style.display = 'block';
     document.getElementById('comercial-kpis').style.display = 'none';
-    if (chartDisponible()) {
-      destroyChart('comparativa');
-      const canvasEl = document.getElementById('chart-comparativa');
-      if (canvasEl) {
-        charts.comparativa = new Chart(canvasEl, {
-          type: 'bar',
-          data: {
-            labels: DATA.porComercial.map(p => p.vendedor),
-            datasets: [{
-              label: 'Facturación clientes nuevos',
-              data: DATA.porComercial.map(p => p.facturacionClientesNuevos),
-              backgroundColor: ['#CA151E', '#1C1B1A', '#8A8580'],
-              borderRadius: 4,
-              maxBarThickness: 70,
-            }]
-          },
-          options: chartBaseOptions((v) => fmt(v))
-        });
-      }
-    } else {
-      mostrarAvisoSinGrafico('chart-comparativa', 'No se pudo cargar el gráfico. Datos: ' + DATA.porComercial.map(p => `${p.vendedor}: ${fmt(p.facturacionClientesNuevos)}`).join(' · '));
-    }
+    const entradas = DATA.porComercial.map(p => ({ label: p.vendedor, value: p.facturacionClientesNuevos }));
+    renderBarras('comparativa-barras', entradas, { formatValue: fmt });
     return;
   }
   document.getElementById('comercial-chart-wrap').style.display = 'none';
@@ -233,12 +187,20 @@ function pintarComercial(nombre) {
   document.getElementById('com-kpi-clientes').textContent = persona.clientesNuevos;
   document.getElementById('com-kpi-ganadas').textContent = persona.embudo.GANADA;
 
+  const noNuevas = persona.ganadasNoNuevas || [];
+  const notaEl = document.getElementById('com-kpi-clientes-note');
+  if (noNuevas.length > 0) {
+    const nombres = noNuevas.map(g => g.cliente || g.oportunidad).join(', ');
+    notaEl.textContent = `${noNuevas.length} ganada(s) ya facturaban antes, no cuentan para el bono: ${nombres}`;
+  } else {
+    notaEl.textContent = 'Todas las ganadas son de clientes nuevos.';
+  }
+
   renderFunnel('embudo-comercial', persona.embudo);
 }
 
 /* ---------------- PROGRESO AL BONO ---------------- */
 function renderProgresoBono() {
-  const meses = DATA.objetivoBono.filter(m => m['Facturación Neta Clientes Nuevos'] > 0 || m['Mes'] <= mesActualAprox());
   const objetivo = DATA.objetivoBono[0]['Objetivo Mensual'];
   document.getElementById('bono-objetivo-label').textContent = fmt(objetivo) + ' / mes, 2 meses seguidos';
 
@@ -252,7 +214,6 @@ function renderProgresoBono() {
     banner.className = 'bono-banner';
   }
 
-  // Ruta: mostramos los últimos 6 meses con datos (o hasta el mes actual)
   const relevantes = DATA.objetivoBono.filter(m => m['Facturación Neta Clientes Nuevos'] > 0).slice(0, 6);
   const ruta = document.getElementById('ruta-meses');
   ruta.innerHTML = '';
@@ -271,7 +232,6 @@ function renderProgresoBono() {
     ruta.appendChild(stop);
   });
 
-  // Tabla comisiones
   const tbody = document.getElementById('comisiones-tbody');
   tbody.innerHTML = '';
   DATA.comisiones.forEach(row => {
@@ -286,26 +246,6 @@ function renderProgresoBono() {
   });
 }
 
-function mesActualAprox() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
-
-function chartBaseOptions(tooltipFmt) {
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { callbacks: { label: (ctx) => tooltipFmt(ctx.parsed.y ?? ctx.parsed.x) } }
-    },
-    scales: {
-      y: { ticks: { callback: (v) => tooltipFmt(v) }, grid: { color: '#EDEBE7' } },
-      x: { grid: { display: false } }
-    }
-  };
-}
-
 /* ---------------- NAV ---------------- */
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -317,4 +257,4 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
 });
 
 cargarDatos();
-setInterval(cargarDatos, 5 * 60 * 1000); // refresco automático cada 5 minutos
+setInterval(cargarDatos, 5 * 60 * 1000);
