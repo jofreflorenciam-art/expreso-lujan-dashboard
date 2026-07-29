@@ -293,3 +293,104 @@ footer.site-footer {
   .view-title { font-size: 25px; }
   .simple-bar-row { grid-template-columns: 110px 1fr 90px; gap: 8px; }
 }
+
+/* ============================================================
+   BOTONES DE DESCARGA PDF
+   ============================================================ */
+.pdf-actions { display: flex; gap: 8px; }
+.btn-pdf {
+  font-family: 'Raleway', sans-serif;
+  background: var(--red); color: #fff; border: 1.5px solid var(--red);
+  padding: 10px 16px; font-size: 12px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase;
+  border-radius: 7px; cursor: pointer; transition: all .15s ease;
+  white-space: nowrap;
+}
+.btn-pdf:hover { background: var(--red-dark); border-color: var(--red-dark); }
+.btn-pdf--alt { background: transparent; color: var(--black); border-color: var(--black); }
+.btn-pdf--alt:hover { background: var(--black); color: #fff; }
+
+/* Lo que sólo existe en el PDF permanece oculto en pantalla */
+.print-only { display: none; }
+
+/* ============================================================
+   HOJA DE ESTILOS PARA IMPRESIÓN / GUARDAR COMO PDF
+   ============================================================ */
+@media print {
+  @page { size: A4 portrait; margin: 14mm 12mm; }
+
+  /* Fuerza a que se impriman los fondos y colores de marca */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  body { background: #fff; font-size: 10.5pt; }
+  .wrap { max-width: none; padding: 0; }
+
+  /* Se oculta todo lo que es navegación o interacción */
+  header.site-header, .pdf-actions, nav.nav-tabs, #status-carga,
+  .mes-selector-row, #comercial-selector, .tag-tabs, footer.site-footer,
+  .panel-hint, .mes-hint { display: none !important; }
+
+  .print-only { display: block !important; }
+
+  /* Encabezado del PDF */
+  #print-header {
+    border-bottom: 3px solid var(--red);
+    padding-bottom: 10px; margin-bottom: 16px;
+  }
+  .print-head-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .print-logo { height: 34px; }
+  .print-meta { text-align: right; font-size: 8.5pt; color: #555; line-height: 1.5; }
+  .print-fuente { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+  .print-title {
+    font-size: 19pt; font-weight: 900; text-transform: uppercase;
+    letter-spacing: .02em; margin: 12px 0 6px;
+  }
+  .print-filtros { font-size: 9.5pt; color: #333; }
+  .print-filtros span {
+    display: inline-block; background: var(--cream); border: 1px solid var(--line);
+    border-radius: 4px; padding: 3px 9px; margin-right: 6px; font-weight: 700;
+  }
+
+  /* Sólo se imprime la vista activa (o todas, según el botón) */
+  .view { display: none !important; }
+  .view.active { display: block !important; }
+  body.print-all .view { display: block !important; }
+  body.print-all .view + .view { page-break-before: always; }
+
+  .view-head { margin-bottom: 12px; }
+  .view-title { font-size: 14pt; }
+  .view-subtitle { font-size: 9pt; }
+
+  /* Nada se corta a la mitad entre páginas */
+  .panel, .kpi-card, .ruta-stop, .embudo-svg-wrap, tr {
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  .panel { border: 1px solid var(--line); box-shadow: none; margin-bottom: 12px; padding: 12px 14px; }
+  .kpi-row, #comercial-kpis { gap: 8px; margin-bottom: 12px; }
+  .kpi-card { padding: 10px 12px; }
+  .kpi-value { font-size: 16pt; }
+  .kpi-label { font-size: 7.5pt; }
+  .kpi-foot, .kpi-note { font-size: 7.5pt; }
+
+  /* Tabla de detalle al final del PDF */
+  #detalle-print { page-break-before: always; margin-top: 0; }
+  .print-subtitle {
+    font-size: 13pt; font-weight: 900; text-transform: uppercase;
+    letter-spacing: .04em; margin: 0 0 10px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--black);
+  }
+  table.tabla-detalle { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  table.tabla-detalle thead { display: table-header-group; }
+  table.tabla-detalle th {
+    text-align: left; text-transform: uppercase; letter-spacing: .06em;
+    font-size: 7.5pt; font-weight: 800; color: #555;
+    border-bottom: 1.5px solid var(--black); padding: 6px 5px;
+  }
+  table.tabla-detalle td { padding: 5px; border-bottom: 1px solid #EEE; }
+  table.tabla-detalle .num { text-align: right; }
+  table.tabla-detalle tr.es-nuevo td:first-child { border-left: 3px solid var(--red); }
+  table.tabla-detalle tfoot td {
+    font-weight: 900; border-top: 2px solid var(--black); padding: 7px 5px;
+  }
+  .print-nota { font-size: 8pt; color: #666; margin-top: 8px; font-style: italic; }
+}

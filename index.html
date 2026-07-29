@@ -20,9 +20,26 @@
       <button class="nav-tab" data-view="view-comercial">Por Comercial</button>
       <button class="nav-tab" data-view="view-bono">Progreso al Bono</button>
     </nav>
+    <div class="pdf-actions">
+      <button id="btn-pdf-vista" class="btn-pdf" title="Descarga en PDF sólo la sección que estás viendo, con los filtros puestos">Descargar vista</button>
+      <button id="btn-pdf-todo" class="btn-pdf btn-pdf--alt" title="Descarga en PDF el informe completo con las tres secciones">Informe completo</button>
+    </div>
   </div>
   <div id="status-carga">Cargando...</div>
 </header>
+
+<!-- Encabezado que sale únicamente en el PDF -->
+<div id="print-header" class="print-only">
+  <div class="print-head-top">
+    <img class="print-logo" src="" alt="Expreso Luján de Cuyo S.A.">
+    <div class="print-meta">
+      <div class="print-fecha" id="print-fecha"></div>
+      <div class="print-fuente">Reporte de ventas · clientes nuevos</div>
+    </div>
+  </div>
+  <h1 class="print-title" id="print-title">Reporte de Ventas</h1>
+  <div class="print-filtros" id="print-filtros"></div>
+</div>
 
 <main class="wrap">
 
@@ -179,6 +196,26 @@
         <tbody id="comisiones-tbody"></tbody>
       </table>
     </div>
+  </section>
+
+  <!-- Detalle de oportunidades: sale únicamente en el PDF -->
+  <section id="detalle-print" class="print-only">
+    <h2 class="print-subtitle" id="detalle-titulo">Detalle de oportunidades</h2>
+    <table class="tabla-detalle">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente / Oportunidad</th>
+          <th>Vendedor</th>
+          <th>Etapa</th>
+          <th>Cliente nuevo</th>
+          <th class="num">Facturación</th>
+        </tr>
+      </thead>
+      <tbody id="detalle-tbody"></tbody>
+      <tfoot id="detalle-tfoot"></tfoot>
+    </table>
+    <p class="print-nota" id="detalle-nota"></p>
   </section>
 
 </main>

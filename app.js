@@ -452,5 +452,125 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
   });
 });
 
+
+/* ============================================================
+   EXPORTACIÓN A PDF
+   Usa la impresión nativa del navegador (destino "Guardar como PDF").
+   No depende de ninguna librería externa, así que ningún bloqueador
+   de anuncios puede romperla.
+   ============================================================ */
+
+const TITULOS_VISTA = {
+  'view-ventas': 'Ventas General',
+  'view-comercial': 'Por Comercial',
+  'view-bono': 'Progreso al Bono',
+};
+
+function vistaActiva() {
+  const v = document.querySelector('.view.active');
+  return v ? v.id : 'view-ventas';
+}
+
+function comercialActivo() {
+  const pill = document.querySelector('#comercial-selector .pill.active');
+  return pill ? pill.textContent : null;
+}
+
+/** Arma el encabezado que aparece en el PDF: logo, título, filtros y fecha */
+function prepararEncabezadoPdf(completo) {
+  const logo = document.querySelector('.logo-img');
+  const printLogo = document.querySelector('.print-logo');
+  if (logo && printLogo) printLogo.src = logo.src;
+
+  document.getElementById('print-fecha').textContent =
+    'Generado el ' + new Date().toLocaleString('es-AR');
+
+  document.getElementById('print-title').textContent =
+    completo ? 'Reporte de Ventas · Informe completo' : TITULOS_VISTA[vistaActiva()];
+
+  // Filtros aplicados, para que quien reciba el PDF sepa qué está mirando
+  const filtros = [];
+  if (completo || vistaActiva() === 'view-ventas') {
+    filtros.push('Mes: ' + (MES_ACTUAL || '—'));
+  }
+  if (completo || vistaActiva() === 'view-comercial') {
+    const com = comercialActivo();
+    filtros.push('Comercial: ' + (com && com !== 'Todos' ? com : 'Todos'));
+  }
+  document.getElementById('print-filtros').innerHTML =
+    filtros.map(f => `<span>${f}</span>`).join('');
+}
+
+/** Arma la tabla de detalle de oportunidades que va al final del PDF */
+function prepararDetallePdf(completo) {
+  if (!DATA || !DATA.filas) return;
+
+  const vista = vistaActiva();
+  const com = comercialActivo();
+  let filas = DATA.filas.slice();
+  let descripcion;
+
+  if (!completo && vista === 'view-comercial' && com && com !== 'Todos') {
+    // Detalle del comercial elegido (acumulado, igual que la vista)
+    filas = filas.filter(f => f.vendedor === com);
+    descripcion = `Oportunidades de ${com}, acumulado desde el lanzamiento del programa.`;
+  } else if (!completo && vista === 'view-bono') {
+    // Sólo lo que suma al bono
+    filas = filas.filter(f => f.califica === 'SI');
+    descripcion = 'Oportunidades de clientes nuevos que computan para el bono, acumulado desde el lanzamiento.';
+  } else if (!completo && vista === 'view-ventas') {
+    // Lo del mes elegido, con el mismo criterio que la pantalla
+    filas = filas.filter(f => f.mesCreado === MES_ACTUAL || (f.califica === 'SI' && f.mesFactura === MES_ACTUAL));
+    descripcion = `Oportunidades creadas o facturadas en ${MES_ACTUAL}.`;
+  } else {
+    descripcion = 'Todas las oportunidades cargadas, acumulado desde el lanzamiento del programa.';
+  }
+
+  // Primero las que facturaron (de mayor a menor), después el resto
+  filas.sort((a, b) => b.ingresos - a.ingresos);
+
+  const tbody = document.getElementById('detalle-tbody');
+  tbody.innerHTML = '';
+  filas.forEach((f, i) => {
+    const tr = document.createElement('tr');
+    if (f.califica === 'SI') tr.className = 'es-nuevo';
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td>${f.cliente || f.oportunidad}</td>
+      <td>${f.vendedor}</td>
+      <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
+      <td>${f.califica === 'SI' ? 'Sí' : (f.etapa === 'GANADA' ? 'No' : '—')}</td>
+      <td class="num">${f.ingresos > 0 ? fmt(f.ingresos) : '—'}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  const total = filas.reduce((acc, f) => acc + f.ingresos, 0);
+  const cuentanBono = filas.filter(f => f.califica === 'SI').length;
+  document.getElementById('detalle-tfoot').innerHTML = `
+    <tr>
+      <td colspan="5">Total (${filas.length} oportunidades · ${cuentanBono} de clientes nuevos)</td>
+      <td class="num">${fmt(total)}</td>
+    </tr>`;
+
+  document.getElementById('detalle-nota').textContent =
+    descripcion + ' Las filas marcadas con una línea roja a la izquierda son las de clientes nuevos que computan para el bono.';
+}
+
+function descargarPdf(completo) {
+  prepararEncabezadoPdf(completo);
+  prepararDetallePdf(completo);
+  document.body.classList.toggle('print-all', !!completo);
+  window.print();
+}
+
+// Al cerrar el diálogo de impresión, se vuelve a dejar la pantalla como estaba
+window.addEventListener('afterprint', () => {
+  document.body.classList.remove('print-all');
+});
+
+document.getElementById('btn-pdf-vista').addEventListener('click', () => descargarPdf(false));
+document.getElementById('btn-pdf-todo').addEventListener('click', () => descargarPdf(true));
+
+
 cargarDatos();
 setInterval(cargarDatos, 5 * 60 * 1000);
