@@ -114,6 +114,7 @@ nav.nav-tabs { display: flex; gap: 4px; background: var(--cream); padding: 4px; 
   box-shadow: var(--shadow-sm); transition: transform .18s ease, box-shadow .18s ease;
 }
 .kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.kpi-clickable { cursor: pointer; }
 .kpi-card::before {
   content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--red);
 }

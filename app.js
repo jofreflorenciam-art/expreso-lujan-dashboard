@@ -482,6 +482,12 @@ function renderPorComercial() {
  * Si se pasa "vendedor", se filtra solo a las de ese comercial (vista individual); si se
  * pasa null, se muestran las de todo el equipo (vista Todos).
  */
+/** Motivo a mostrar en las tablas de revisión. */
+function motivoRevision(f) {
+  if (f.califica === 'NO') return f.obs || 'Sin motivo cargado en OBS';
+  return 'Todavía sin verificar contra facturación';
+}
+
 function renderRevisionNoCalifica(filas, vendedor, mes) {
   const panel = document.getElementById('panel-revision-no-califica');
   if (!panel) return;
@@ -497,7 +503,7 @@ function renderRevisionNoCalifica(filas, vendedor, mes) {
   if (hint) hint.textContent = `ganadas de ${mes} que no computan todavía`;
 
   const pendientes = filas
-    .filter(f => f.etapa === 'GANADA' && f.califica === 'NO' && f.mesCreado === mes && (!vendedor || f.vendedor === vendedor))
+    .filter(f => f.etapa === 'GANADA' && f.califica !== 'SI' && f.mesCreado === mes && (!vendedor || f.vendedor === vendedor))
     .sort((a, b) => (a.vendedor || '').localeCompare(b.vendedor || ''));
 
   if (pendientes.length === 0) {
@@ -516,7 +522,7 @@ function renderRevisionNoCalifica(filas, vendedor, mes) {
       <td>${f.oportunidad || f.cliente}</td>
       <td>${f.vendedor}</td>
       <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
-      <td>${f.obs || 'Sin motivo cargado en OBS'}</td>
+      <td>${motivoRevision(f)}</td>
       <td>${f.mesCreado || '—'}</td>
     </tr>`).join('');
 }
@@ -539,7 +545,7 @@ function renderRevisionAnteriores(filas, vendedor, mes) {
   }
 
   const pendientes = filas
-    .filter(f => f.etapa === 'GANADA' && f.califica === 'NO' && f.mesCreado && f.mesCreado < mes && (!vendedor || f.vendedor === vendedor))
+    .filter(f => f.etapa === 'GANADA' && f.califica !== 'SI' && f.mesCreado && f.mesCreado < mes && (!vendedor || f.vendedor === vendedor))
     .sort((a, b) => (a.mesCreado || '').localeCompare(b.mesCreado || ''));
 
   if (pendientes.length === 0) {
@@ -555,7 +561,7 @@ function renderRevisionAnteriores(filas, vendedor, mes) {
       <td>${f.oportunidad || f.cliente}</td>
       <td>${f.vendedor}</td>
       <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
-      <td>${f.obs || 'Sin motivo cargado en OBS'}</td>
+      <td>${motivoRevision(f)}</td>
       <td>${f.mesCreado}</td>
     </tr>`).join('');
 }
@@ -840,6 +846,35 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
     document.getElementById(tab.dataset.view).classList.add('active');
   });
 });
+
+/**
+ * Lleva de una tarjeta KPI a su tabla/panel de detalle correspondiente: cambia de pestaña
+ * si hace falta, fuerza "Todos" en Por Comercial si hace falta, y hace scroll suave hasta
+ * el elemento. El pequeño delay es para darle tiempo a la vista a pintarse antes de scrollear.
+ */
+function irADetalle(elementoId, opciones = {}) {
+  if (opciones.vista) {
+    const tab = document.querySelector(`.nav-tab[data-view="${opciones.vista}"]`);
+    if (tab && !tab.classList.contains('active')) tab.click();
+  }
+  if (opciones.comercialTodos) {
+    const pillTodos = document.querySelector('#comercial-selector .pill');
+    if (pillTodos && !pillTodos.classList.contains('active')) pillTodos.click();
+  }
+  setTimeout(() => {
+    const el = document.getElementById(elementoId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 60);
+}
+
+document.getElementById('kpi-card-pendientes')?.addEventListener('click', () =>
+  irADetalle('panel-revision-no-califica', { vista: 'view-comercial', comercialTodos: true }));
+document.getElementById('kpi-card-ganadas')?.addEventListener('click', () =>
+  irADetalle('embudo-general', { }));
+document.getElementById('kpi-card-facturacion')?.addEventListener('click', () =>
+  irADetalle('top-clientes', { }));
+document.getElementById('com-kpi-card-ganadas')?.addEventListener('click', () =>
+  irADetalle('tabla-ganadas-mes', { }));
 
 
 /* ============================================================
