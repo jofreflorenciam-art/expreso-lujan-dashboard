@@ -270,6 +270,45 @@ function renderRing(containerId, pct, textoCentro, subtexto) {
   wrap.innerHTML = svg;
 }
 
+/**
+ * Dos barras por mes: cantidad de oportunidades creadas ese mes (mismo criterio que el
+ * Embudo) y facturación de clientes nuevos por mes de factura. Cada barra se escala
+ * contra el máximo de SU propia serie, porque mezclar cantidad (unidades) y facturación
+ * ($) en la misma escala deja una de las dos ilegible.
+ */
+function renderMesesDoble(containerId, mesesUnion, cantidadPorMes, facturacionPorMes, mesActivo) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  if (mesesUnion.length === 0) {
+    cont.innerHTML = '<p class="empty-msg">Todavía no hay datos cargados.</p>';
+    return;
+  }
+  const maxCant = Math.max(1, ...mesesUnion.map(m => cantidadPorMes[m] || 0));
+  const maxFact = Math.max(1, ...mesesUnion.map(m => facturacionPorMes[m] || 0));
+
+  cont.innerHTML = mesesUnion.map(m => {
+    const cant = cantidadPorMes[m] || 0;
+    const fact = facturacionPorMes[m] || 0;
+    const pctCant = Math.round((cant / maxCant) * 100);
+    const pctFact = Math.round((fact / maxFact) * 100);
+    const activo = m === mesActivo;
+    return `
+      <div class="mesdoble-row">
+        <div class="mesdoble-mes${activo ? ' activo' : ''}">${m}${activo ? ' · mes activo' : ''}</div>
+        <div class="mesdoble-linea">
+          <span class="mesdoble-tag">Cant.</span>
+          <div class="mesdoble-track"><div class="mesdoble-fill mesdoble-fill--cant" style="width:${pctCant}%"></div></div>
+          <span class="mesdoble-val">${cant}</span>
+        </div>
+        <div class="mesdoble-linea">
+          <span class="mesdoble-tag">Fact.</span>
+          <div class="mesdoble-track"><div class="mesdoble-fill mesdoble-fill--fact" style="width:${pctFact}%"></div></div>
+          <span class="mesdoble-val">${fmt(fact)}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 function pintarDelta(containerId, actual, anterior, etiquetaAnterior) {
   const cont = document.getElementById(containerId);
   cont.innerHTML = '';
@@ -357,17 +396,23 @@ function pintarVentasGeneralDelMes(filas, meses) {
     .map(f => ({ label: f.oportunidad || f.cliente, value: f.ingresos }));
   renderBarras('top-clientes', top10, { formatValue: fmt, ranking: true, vacioMsg: 'No hay facturación de clientes nuevos en este mes.' });
 
-  // Facturación mes a mes (destaca el mes activo)
-  const totales = {};
+  // Oportunidades y facturación por mes: cantidad por mes de CREACIÓN (mismo criterio
+  // y mismo número que el Embudo — todas las etapas, total) + facturación por mes de
+  // FACTURA (sin cambios). Se unen ambos listados de meses para no perder ninguno.
+  const cantidadPorMes = {};
   filas.forEach(f => {
-    if (f.califica === 'SI' && f.mesFactura && f.mesFactura !== 'Sin fecha') {
-      totales[f.mesFactura] = (totales[f.mesFactura] || 0) + f.ingresos;
+    if (f.mesCreado && f.mesCreado !== 'Sin fecha') {
+      cantidadPorMes[f.mesCreado] = (cantidadPorMes[f.mesCreado] || 0) + 1;
     }
   });
-  const mesesFact = Object.keys(totales).sort();
-  renderBarras('facturacion-mes-barras',
-    mesesFact.map(m => ({ label: m, value: totales[m], color: m === mes ? 'var(--red)' : 'var(--gray)' })),
-    { formatValue: fmt, vacioMsg: 'Todavía no hay facturación cargada.' });
+  const facturacionPorMes = {};
+  filas.forEach(f => {
+    if (f.califica === 'SI' && f.mesFactura && f.mesFactura !== 'Sin fecha') {
+      facturacionPorMes[f.mesFactura] = (facturacionPorMes[f.mesFactura] || 0) + f.ingresos;
+    }
+  });
+  const mesesUnion = [...new Set([...Object.keys(cantidadPorMes), ...Object.keys(facturacionPorMes)])].sort();
+  renderMesesDoble('meses-doble', mesesUnion, cantidadPorMes, facturacionPorMes, mes);
 
   // Etiquetas del mes
   const dicc = DATA.diccionarioEtiquetas || {};
@@ -419,6 +464,52 @@ function renderPorComercial() {
   pintarComercial('Todos', filas, nombres);
 }
 
+/**
+ * Cuadro de revisión: ganadas marcadas CALIFICA = NO (sin importar el mes — es un backlog
+ * a resolver, no una foto de un mes puntual). No suman en ninguna cifra del dashboard hasta
+ * que se complete el dato de empresa/monto y se cambie a CALIFICA = SÍ en la Base.
+ * Si se pasa "vendedor", se filtra solo a las de ese comercial (vista individual); si se
+ * pasa null, se muestran las de todo el equipo (vista Todos).
+ * Regla acordada con Florencia: no se borran, solo no se cuentan, y quedan visibles acá
+ * para que el comercial correspondiente las revise y dé la devolución que falta.
+ */
+function renderRevisionNoCalifica(filas, vendedor) {
+  const panel = document.getElementById('panel-revision-no-califica');
+  if (!panel) return;
+  const tbody = document.getElementById('revision-tbody');
+  const scroll = document.getElementById('revision-scroll');
+  const vacio = document.getElementById('revision-vacio');
+  const titulo = document.getElementById('revision-titulo');
+
+  if (titulo) {
+    titulo.textContent = vendedor ? `Pendientes de revisar de ${vendedor}` : 'Pendientes de revisar';
+  }
+
+  const pendientes = filas
+    .filter(f => f.etapa === 'GANADA' && f.califica === 'NO' && (!vendedor || f.vendedor === vendedor))
+    .sort((a, b) => (a.vendedor || '').localeCompare(b.vendedor || ''));
+
+  if (pendientes.length === 0) {
+    scroll.style.display = 'none';
+    vacio.style.display = 'block';
+    vacio.textContent = vendedor
+      ? `${vendedor} no tiene ganadas pendientes de revisar.`
+      : 'No hay ganadas pendientes de revisar.';
+    return;
+  }
+  scroll.style.display = '';
+  vacio.style.display = 'none';
+
+  tbody.innerHTML = pendientes.map(f => `
+    <tr>
+      <td>${f.oportunidad || f.cliente}</td>
+      <td>${f.vendedor}</td>
+      <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
+      <td>${f.obs || 'Sin motivo cargado en OBS'}</td>
+      <td class="num">${f.ingresos > 0 ? fmt(f.ingresos) : '—'}</td>
+    </tr>`).join('');
+}
+
 function pintarComercial(nombre, filas, nombres) {
   const mes = MES_ACTUAL;
   const esTodos = nombre === 'Todos';
@@ -431,22 +522,35 @@ function pintarComercial(nombre, filas, nombres) {
   const dh = document.getElementById('donut-hint');
   if (dh) dh.textContent = `clientes nuevos facturados en ${mes}`;
 
+  renderRevisionNoCalifica(filas, esTodos ? null : nombre);
+
   // Métricas del mes para un vendedor (o para todos si se pasa null)
   const metricasDe = (v) => {
     const cohorte = filas.filter(f => f.mesCreado === mes && (v === null || f.vendedor === v));
+
+    // "Ganadas" que se muestran en la tabla: por MES DE FACTURA (cuando se confirma la
+    // venta de verdad), no por mes de creación. Una ganada sin factura cargada (mesFactura
+    // vacío) no cae en ningún mes hasta que se complete el dato — no desaparece del sistema,
+    // queda listada en el cuadro "Pendientes de revisar" al final de esta vista.
+    const ganadasDelMes = filas.filter(f => f.etapa === 'GANADA' && f.mesFactura === mes && (v === null || f.vendedor === v));
+    // La facturación de clientes nuevos ya se calculaba por mes de factura + CALIFICA=SI (sin cambios).
     const facturado = filas.filter(f => f.califica === 'SI' && f.mesFactura === mes && (v === null || f.vendedor === v));
+
     const cont = (etapa) => cohorte.filter(f => f.etapa === etapa).length;
     const creadas = cohorte.length;
     const nuevas = cont('NUEVO');
-    const ganadas = cont('GANADA');
     const perdidas = cont('PERDIDA');
+    // La tasa de cierre necesita comparar cosas de la MISMA base temporal (si no, vuelve a
+    // pasar lo de los porcentajes sin sentido): se calcula con las ganadas de ESTE cohorte,
+    // no con las ganadas por factura que se muestran en la columna.
+    const ganadasCohorte = cont('GANADA');
     return {
       creadas,
       cotizadas: creadas - nuevas,
-      ganadas,
+      ganadas: ganadasDelMes.length,
       perdidas,
       abiertas: nuevas + cont('COTIZACION ENVIADA') + cont('NEGOCIACION'),
-      cierre: (ganadas + perdidas) > 0 ? Math.round((ganadas / (ganadas + perdidas)) * 100) : null,
+      cierre: (ganadasCohorte + perdidas) > 0 ? Math.round((ganadasCohorte / (ganadasCohorte + perdidas)) * 100) : null,
       facturacion: facturado.reduce((a, f) => a + f.ingresos, 0),
     };
   };
@@ -486,6 +590,7 @@ function pintarComercial(nombre, filas, nombres) {
       });
 
     const t = metricasDe(null);
+    renderRing('comparativa-ring', t.cierre === null ? 0 : t.cierre, t.cierre === null ? '—' : t.cierre + '%', 'CIERRE DEL EQUIPO');
     document.getElementById('comparativa-tfoot').innerHTML = `
       <tr>
         <td class="td-nombre">TOTAL EQUIPO</td>
@@ -497,6 +602,7 @@ function pintarComercial(nombre, filas, nombres) {
         <td class="num">${t.cierre === null ? '—' : t.cierre + '%'}</td>
         <td class="num">${fmt(t.facturacion)}</td>
       </tr>`;
+
     return;
   }
 
@@ -504,47 +610,17 @@ function pintarComercial(nombre, filas, nombres) {
   const m = metricasDe(nombre);
   const cohorte = filas.filter(f => f.mesCreado === mes && f.vendedor === nombre);
   const embudo = { NUEVO: 0, "COTIZACION ENVIADA": 0, NEGOCIACION: 0, GANADA: 0, PERDIDA: 0 };
-  const ganadasNoNuevas = [];
   cohorte.forEach(f => {
     if (embudo.hasOwnProperty(f.etapa)) embudo[f.etapa]++;
-    if (f.etapa === 'GANADA' && f.califica !== 'SI') {
-      ganadasNoNuevas.push({ oportunidad: f.oportunidad, cliente: f.cliente, obs: f.obs, califica: f.califica });
-    }
   });
-  const clientesNuevos = cohorte.filter(f => f.etapa === 'GANADA' && f.califica === 'SI').length;
 
   document.getElementById('com-kpi-facturacion').textContent = fmt(m.facturacion);
-  document.getElementById('com-kpi-clientes').textContent = clientesNuevos;
   document.getElementById('com-kpi-ganadas').textContent = m.ganadas;
 
   const totalEquipo = metricasDe(null).facturacion;
   const share = totalEquipo > 0 ? Math.round((m.facturacion / totalEquipo) * 100) : 0;
   document.getElementById('com-kpi-facturacion-foot').innerHTML =
     `<span class="kpi-delta kpi-delta--flat">${share}%</span><span class="kpi-sub">del equipo en ${mes}</span>`;
-
-  const notaEl = document.getElementById('com-kpi-clientes-note');
-  notaEl.innerHTML = '';
-  if (ganadasNoNuevas.length > 0) {
-    const intro = document.createElement('div');
-    intro.textContent = `${ganadasNoNuevas.length} ganada(s) del mes no cuentan para el bono:`;
-    notaEl.appendChild(intro);
-    const lista = document.createElement('ul');
-    lista.className = 'nota-lista';
-    ganadasNoNuevas.forEach(g => {
-      const li = document.createElement('li');
-      const nombreMostrar = g.oportunidad || g.cliente;
-      const motivo = g.obs
-        ? g.obs
-        : (g.califica === 'NO' ? 'sin motivo cargado en OBS' : 'todavía sin verificar contra facturación');
-      li.innerHTML = `<span class="nl-nombre">${nombreMostrar}</span><br><span class="nl-motivo">${motivo}</span>`;
-      lista.appendChild(li);
-    });
-    notaEl.appendChild(lista);
-  } else {
-    notaEl.textContent = m.ganadas > 0
-      ? 'Todas sus ganadas del mes son de clientes nuevos.'
-      : 'No registró oportunidades ganadas este mes.';
-  }
 
   renderFunnel('embudo-comercial', embudo);
   renderArrastre('arrastre-comercial', filas.filter(f => f.vendedor === nombre), mes);
