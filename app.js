@@ -528,10 +528,12 @@ function renderRevisionNoCalifica(filas, vendedor, mes) {
 }
 
 /**
- * Acumulado de meses ANTERIORES al filtrado: ganadas marcadas CALIFICA = NO de meses previos
- * que siguen sin resolverse. No depende del selector de mes de arriba — así no se pierden de
- * vista al cambiar de mes (antes, al filtrar julio, las de junio directamente desaparecían).
+ * Abiertas (Nuevo / Cotización enviada / Negociación) de meses ANTERIORES al filtrado, que
+ * siguen sin resolverse — hay que retomarlas o mandarlas a Perdida, pero no pueden quedar
+ * dando vueltas para siempre sin que nadie las vea. No depende del selector de mes de arriba,
+ * para que no se pierdan de vista al cambiar de mes.
  */
+const ABIERTAS_ETAPAS = ['NUEVO', 'COTIZACION ENVIADA', 'NEGOCIACION'];
 function renderRevisionAnteriores(filas, vendedor, mes) {
   const panel = document.getElementById('panel-revision-anteriores');
   if (!panel) return;
@@ -541,11 +543,11 @@ function renderRevisionAnteriores(filas, vendedor, mes) {
   const titulo = document.getElementById('revision-anteriores-titulo');
 
   if (titulo) {
-    titulo.textContent = vendedor ? `Pendientes de meses anteriores de ${vendedor}` : 'Pendientes de meses anteriores';
+    titulo.textContent = vendedor ? `Abiertas de meses anteriores de ${vendedor}` : 'Abiertas de meses anteriores';
   }
 
   const pendientes = filas
-    .filter(f => f.etapa === 'GANADA' && f.califica !== 'SI' && f.mesCreado && f.mesCreado < mes && (!vendedor || f.vendedor === vendedor))
+    .filter(f => ABIERTAS_ETAPAS.includes(f.etapa) && f.mesCreado && f.mesCreado < mes && (!vendedor || f.vendedor === vendedor))
     .sort((a, b) => (a.mesCreado || '').localeCompare(b.mesCreado || ''));
 
   if (pendientes.length === 0) {
@@ -561,7 +563,6 @@ function renderRevisionAnteriores(filas, vendedor, mes) {
       <td>${f.oportunidad || f.cliente}</td>
       <td>${f.vendedor}</td>
       <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
-      <td>${motivoRevision(f)}</td>
       <td>${f.mesCreado}</td>
     </tr>`).join('');
 }
@@ -684,18 +685,12 @@ function pintarComercial(nombre, filas, nombres) {
   renderArrastre('arrastre-comercial', filas.filter(f => f.vendedor === nombre), mes);
 
   // Tablas de detalle: lo mismo que cuenta el embudo del mes (cohorte), pero fila por fila.
-  const ABIERTAS = ['NUEVO', 'COTIZACION ENVIADA', 'NEGOCIACION'];
-  const abiertasAnteriores = filas.filter(f =>
-    f.vendedor === nombre && f.mesCreado && f.mesCreado < mes && ABIERTAS.includes(f.etapa)
-  );
   renderTablaOportunidades('tabla-ganadas-mes', cohorte.filter(f => f.etapa === 'GANADA'),
     { mostrarMonto: true, vacioMsg: 'No tiene ganadas creadas este mes.' });
   renderTablaOportunidades('tabla-cotizacion-mes', cohorte.filter(f => f.etapa === 'COTIZACION ENVIADA'),
     { mostrarMonto: false, vacioMsg: 'No tiene oportunidades en cotización este mes.' });
   renderTablaOportunidades('tabla-negociacion-mes', cohorte.filter(f => f.etapa === 'NEGOCIACION'),
     { mostrarMonto: false, vacioMsg: 'No tiene oportunidades en negociación este mes.' });
-  renderTablaOportunidades('tabla-abiertas-anteriores', abiertasAnteriores,
-    { mostrarMonto: false, mostrarMes: true, mostrarEtapa: true, vacioMsg: 'No tiene oportunidades abiertas de meses anteriores.' });
 }
 
 /**
