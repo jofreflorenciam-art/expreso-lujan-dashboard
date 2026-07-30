@@ -473,28 +473,39 @@ function renderPorComercial() {
  * Regla acordada con Florencia: no se borran, solo no se cuentan, y quedan visibles acá
  * para que el comercial correspondiente las revise y dé la devolución que falta.
  */
-function renderRevisionNoCalifica(filas, vendedor) {
+/**
+ * Cuadro de revisión del MES filtrado: ganadas de ESE mes de creación marcadas CALIFICA = NO.
+ * No suman en ninguna cifra del dashboard hasta que se complete el dato de empresa/monto y
+ * se cambie a CALIFICA = SÍ en la Base. Respeta el selector de mes de arriba — por eso el
+ * número puede variar de mes a mes (a diferencia de antes, que siempre mostraba el total
+ * acumulado de toda la historia sin importar qué mes estuviera filtrado).
+ * Si se pasa "vendedor", se filtra solo a las de ese comercial (vista individual); si se
+ * pasa null, se muestran las de todo el equipo (vista Todos).
+ */
+function renderRevisionNoCalifica(filas, vendedor, mes) {
   const panel = document.getElementById('panel-revision-no-califica');
   if (!panel) return;
   const tbody = document.getElementById('revision-tbody');
   const scroll = document.getElementById('revision-scroll');
   const vacio = document.getElementById('revision-vacio');
   const titulo = document.getElementById('revision-titulo');
+  const hint = document.getElementById('revision-hint');
 
   if (titulo) {
     titulo.textContent = vendedor ? `Pendientes de revisar de ${vendedor}` : 'Pendientes de revisar';
   }
+  if (hint) hint.textContent = `ganadas de ${mes} que no computan todavía`;
 
   const pendientes = filas
-    .filter(f => f.etapa === 'GANADA' && f.califica === 'NO' && (!vendedor || f.vendedor === vendedor))
+    .filter(f => f.etapa === 'GANADA' && f.califica === 'NO' && f.mesCreado === mes && (!vendedor || f.vendedor === vendedor))
     .sort((a, b) => (a.vendedor || '').localeCompare(b.vendedor || ''));
 
   if (pendientes.length === 0) {
     scroll.style.display = 'none';
     vacio.style.display = 'block';
     vacio.textContent = vendedor
-      ? `${vendedor} no tiene ganadas pendientes de revisar.`
-      : 'No hay ganadas pendientes de revisar.';
+      ? `${vendedor} no tiene ganadas pendientes de revisar en ${mes}.`
+      : `No hay ganadas pendientes de revisar en ${mes}.`;
     return;
   }
   scroll.style.display = '';
@@ -506,7 +517,46 @@ function renderRevisionNoCalifica(filas, vendedor) {
       <td>${f.vendedor}</td>
       <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
       <td>${f.obs || 'Sin motivo cargado en OBS'}</td>
-      <td class="num">${f.ingresos > 0 ? fmt(f.ingresos) : '—'}</td>
+      <td>${f.mesCreado || '—'}</td>
+    </tr>`).join('');
+}
+
+/**
+ * Acumulado de meses ANTERIORES al filtrado: ganadas marcadas CALIFICA = NO de meses previos
+ * que siguen sin resolverse. No depende del selector de mes de arriba — así no se pierden de
+ * vista al cambiar de mes (antes, al filtrar julio, las de junio directamente desaparecían).
+ */
+function renderRevisionAnteriores(filas, vendedor, mes) {
+  const panel = document.getElementById('panel-revision-anteriores');
+  if (!panel) return;
+  const tbody = document.getElementById('revision-anteriores-tbody');
+  const scroll = document.getElementById('revision-anteriores-scroll');
+  const vacio = document.getElementById('revision-anteriores-vacio');
+  const titulo = document.getElementById('revision-anteriores-titulo');
+
+  if (titulo) {
+    titulo.textContent = vendedor ? `Pendientes de meses anteriores de ${vendedor}` : 'Pendientes de meses anteriores';
+  }
+
+  const pendientes = filas
+    .filter(f => f.etapa === 'GANADA' && f.califica === 'NO' && f.mesCreado && f.mesCreado < mes && (!vendedor || f.vendedor === vendedor))
+    .sort((a, b) => (a.mesCreado || '').localeCompare(b.mesCreado || ''));
+
+  if (pendientes.length === 0) {
+    scroll.style.display = 'none';
+    vacio.style.display = 'block';
+    return;
+  }
+  scroll.style.display = '';
+  vacio.style.display = 'none';
+
+  tbody.innerHTML = pendientes.map(f => `
+    <tr>
+      <td>${f.oportunidad || f.cliente}</td>
+      <td>${f.vendedor}</td>
+      <td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>
+      <td>${f.obs || 'Sin motivo cargado en OBS'}</td>
+      <td>${f.mesCreado}</td>
     </tr>`).join('');
 }
 
@@ -523,7 +573,8 @@ function pintarComercial(nombre, filas, nombres) {
   const dh = document.getElementById('donut-hint');
   if (dh) dh.textContent = `clientes nuevos facturados en ${mes}`;
 
-  renderRevisionNoCalifica(filas, esTodos ? null : nombre);
+  renderRevisionNoCalifica(filas, esTodos ? null : nombre, mes);
+  renderRevisionAnteriores(filas, esTodos ? null : nombre, mes);
 
   // Métricas del mes para un vendedor (o para todos si se pasa null)
   const metricasDe = (v) => {
