@@ -155,6 +155,7 @@ nav.nav-tabs { display: flex; gap: 4px; background: var(--cream); padding: 4px; 
 }
 .panel-hint { font-size: 10.5px; color: var(--gray); font-style: italic; }
 .panel-row { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
+#panel-detalle-comercial { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
 
 /* ---------- EMBUDO ---------- */
 .embudo-layout { display: grid; grid-template-columns: 1fr 165px; gap: 18px; align-items: center; }
@@ -305,7 +306,7 @@ footer.site-footer {
 
 @media (max-width: 860px) {
   .kpi-row, #comercial-kpis { grid-template-columns: 1fr; }
-  .panel-row, .embudo-layout, .donut-layout, .bono-hero { grid-template-columns: 1fr; }
+  .panel-row, .embudo-layout, .donut-layout, .bono-hero, #panel-detalle-comercial { grid-template-columns: 1fr; }
   .header-inner { flex-direction: column; align-items: flex-start; }
   nav.nav-tabs { width: 100%; overflow-x: auto; }
   .view-title { font-size: 25px; }

@@ -516,6 +516,7 @@ function pintarComercial(nombre, filas, nombres) {
   document.getElementById('comercial-chart-wrap').style.display = esTodos ? 'block' : 'none';
   document.getElementById('comercial-kpis').style.display = esTodos ? 'none' : 'grid';
   document.getElementById('panel-embudo-comercial').style.display = esTodos ? 'none' : 'grid';
+  document.getElementById('panel-detalle-comercial').style.display = esTodos ? 'none' : 'grid';
 
   document.getElementById('comercial-subtitulo').textContent =
     `Desempeño de cada comercial en ${mes}.`;
@@ -624,6 +625,51 @@ function pintarComercial(nombre, filas, nombres) {
 
   renderFunnel('embudo-comercial', embudo);
   renderArrastre('arrastre-comercial', filas.filter(f => f.vendedor === nombre), mes);
+
+  // Tablas de detalle: lo mismo que cuenta el embudo del mes (cohorte), pero fila por fila.
+  const ABIERTAS = ['NUEVO', 'COTIZACION ENVIADA', 'NEGOCIACION'];
+  const abiertasAnteriores = filas.filter(f =>
+    f.vendedor === nombre && f.mesCreado && f.mesCreado < mes && ABIERTAS.includes(f.etapa)
+  );
+  renderTablaOportunidades('tabla-ganadas-mes', cohorte.filter(f => f.etapa === 'GANADA'),
+    { mostrarMonto: true, vacioMsg: 'No tiene ganadas creadas este mes.' });
+  renderTablaOportunidades('tabla-cotizacion-mes', cohorte.filter(f => f.etapa === 'COTIZACION ENVIADA'),
+    { mostrarMonto: false, vacioMsg: 'No tiene oportunidades en cotización este mes.' });
+  renderTablaOportunidades('tabla-negociacion-mes', cohorte.filter(f => f.etapa === 'NEGOCIACION'),
+    { mostrarMonto: false, vacioMsg: 'No tiene oportunidades en negociación este mes.' });
+  renderTablaOportunidades('tabla-abiertas-anteriores', abiertasAnteriores,
+    { mostrarMonto: false, mostrarMes: true, mostrarEtapa: true, vacioMsg: 'No tiene oportunidades abiertas de meses anteriores.' });
+}
+
+/**
+ * Tabla de detalle genérica para las oportunidades de un comercial: Oportunidad + Cliente,
+ * y opcionalmente Mes de creación, Etapa y Monto según qué tabla sea.
+ */
+function renderTablaOportunidades(containerId, rows, opciones = {}) {
+  const cont = document.getElementById(containerId);
+  if (!cont) return;
+  if (rows.length === 0) {
+    cont.innerHTML = `<p class="empty-msg">${opciones.vacioMsg || 'No hay oportunidades en esta categoría.'}</p>`;
+    return;
+  }
+  const mostrarMes = !!opciones.mostrarMes;
+  const mostrarEtapa = !!opciones.mostrarEtapa;
+  const mostrarMonto = opciones.mostrarMonto !== false;
+
+  let head = '<th>Oportunidad</th><th>Cliente</th>';
+  if (mostrarMes) head += '<th>Mes creación</th>';
+  if (mostrarEtapa) head += '<th>Etapa</th>';
+  if (mostrarMonto) head += '<th class="num">Monto</th>';
+
+  const cuerpo = rows.map(f => {
+    let tds = `<td class="td-nombre">${f.oportunidad || '—'}</td><td>${f.cliente || '—'}</td>`;
+    if (mostrarMes) tds += `<td>${f.mesCreado || '—'}</td>`;
+    if (mostrarEtapa) tds += `<td>${ETAPAS_LABEL[f.etapa] || f.etapa}</td>`;
+    if (mostrarMonto) tds += `<td class="num">${f.ingresos > 0 ? fmt(f.ingresos) : '—'}</td>`;
+    return `<tr>${tds}</tr>`;
+  }).join('');
+
+  cont.innerHTML = `<table class="tabla-comparativa"><thead><tr>${head}</tr></thead><tbody>${cuerpo}</tbody></table>`;
 }
 
 /* ---------------- PROGRESO AL BONO ---------------- */
