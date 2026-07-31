@@ -685,12 +685,14 @@ function pintarComercial(nombre, filas, nombres) {
   renderArrastre('arrastre-comercial', filas.filter(f => f.vendedor === nombre), mes);
 
   // Tablas de detalle: lo mismo que cuenta el embudo del mes (cohorte), pero fila por fila.
-  renderTablaOportunidades('tabla-ganadas-mes', cohorte.filter(f => f.etapa === 'GANADA'),
-    { mostrarMonto: true, vacioMsg: 'No tiene ganadas creadas este mes.' });
+  renderTablaOportunidades('tabla-nuevas-mes', cohorte.filter(f => f.etapa === 'NUEVO'),
+    { mostrarMonto: false, vacioMsg: 'No tiene oportunidades nuevas este mes.' });
   renderTablaOportunidades('tabla-cotizacion-mes', cohorte.filter(f => f.etapa === 'COTIZACION ENVIADA'),
     { mostrarMonto: false, vacioMsg: 'No tiene oportunidades en cotización este mes.' });
   renderTablaOportunidades('tabla-negociacion-mes', cohorte.filter(f => f.etapa === 'NEGOCIACION'),
     { mostrarMonto: false, vacioMsg: 'No tiene oportunidades en negociación este mes.' });
+  renderTablaOportunidades('tabla-ganadas-mes', cohorte.filter(f => f.etapa === 'GANADA'),
+    { mostrarMonto: true, vacioMsg: 'No tiene ganadas creadas este mes.' });
 }
 
 /**
