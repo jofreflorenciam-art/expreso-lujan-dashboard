@@ -599,17 +599,12 @@ function pintarComercial(nombre, filas, nombres) {
     const creadas = cohorte.length;
     const nuevas = cont('NUEVO');
     const perdidas = cont('PERDIDA');
-    // La tasa de cierre necesita comparar cosas de la MISMA base temporal (si no, vuelve a
-    // pasar lo de los porcentajes sin sentido): se calcula con las ganadas de ESTE cohorte,
-    // no con las ganadas por factura que se muestran en la columna.
-    const ganadasCohorte = cont('GANADA');
     return {
       creadas,
       cotizadas: creadas - nuevas,
       ganadas: ganadasDelMes.length,
       perdidas,
       abiertas: nuevas + cont('COTIZACION ENVIADA') + cont('NEGOCIACION'),
-      cierre: (ganadasCohorte + perdidas) > 0 ? Math.round((ganadasCohorte / (ganadasCohorte + perdidas)) * 100) : null,
       facturacion: facturado.reduce((a, f) => a + f.ingresos, 0),
     };
   };
@@ -643,13 +638,11 @@ function pintarComercial(nombre, filas, nombres) {
           <td class="num td-ganadas">${m.ganadas}</td>
           <td class="num">${m.perdidas}</td>
           <td class="num">${m.abiertas}</td>
-          <td class="num">${m.cierre === null ? '—' : m.cierre + '%'}</td>
           <td class="num td-facturacion">${fmt(m.facturacion)}</td>`;
         tbody.appendChild(tr);
       });
 
     const t = metricasDe(null);
-    renderRing('comparativa-ring', t.cierre === null ? 0 : t.cierre, t.cierre === null ? '—' : t.cierre + '%', 'CIERRE DEL EQUIPO');
     document.getElementById('comparativa-tfoot').innerHTML = `
       <tr>
         <td class="td-nombre">TOTAL EQUIPO</td>
@@ -658,7 +651,6 @@ function pintarComercial(nombre, filas, nombres) {
         <td class="num">${t.ganadas}</td>
         <td class="num">${t.perdidas}</td>
         <td class="num">${t.abiertas}</td>
-        <td class="num">${t.cierre === null ? '—' : t.cierre + '%'}</td>
         <td class="num">${fmt(t.facturacion)}</td>
       </tr>`;
 
