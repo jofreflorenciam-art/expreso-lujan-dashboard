@@ -141,6 +141,7 @@ const BANDAS = ['1-10 kg','11-20 kg','21-30 kg','31-40 kg','41-50 kg','51-100 kg
  '6501-8000 kg','8001-10000 kg','10001-14000 kg','14001-17000 kg','17001-20000 kg',
  '20001-23500 kg','23501-28000 kg','>28000 kg'];
 const TRAMOS = ['Instantáneo (automático)','Menos de 1 hora','1-24 horas','1-3 días','Más de 3 días','Sin asignar'];
+const VENDEDORES = ['David Callo','Guillermo Reynoso','Omar Prospero'];
 
 /* ---------- componentes con el lenguaje visual del reporte ---------- */
 function kpi(label, value, foot, mod){
@@ -406,7 +407,7 @@ function pintarGestion(){
       <td>${money(cs.reduce((s,c)=>s+c.bonoBruto,0))}</td></tr></tfoot></table></div>`);
 
   const o=ops(filtrados());
-  const vends=[...new Set(o.map(x=>x.vendedor).filter(Boolean))].sort();
+  const vends=VENDEDORES;
   h += panel('Cuánto tardan en tomar un lead','sobre las oportunidades del filtro',
     tabla([{t:'Comercial'}].concat(TRAMOS.map(t=>({t,num:1}))).concat([{t:'Total',num:1}]),
       vends.map(v=>{ const m=o.filter(x=>x.vendedor===v);
